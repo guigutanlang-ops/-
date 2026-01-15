@@ -8,7 +8,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@600;900&display=swap" rel="stylesheet">
     <script>
-        tailwind.config = {
+        window.tailwind.config = {
             theme: {
                 extend: {
                     colors: {
@@ -47,59 +47,30 @@
             color: #EDEDED;
             font-family: 'Noto Sans SC', sans-serif;
         }
-
-        /* 字号 Token 规范 */
-        .font-display { font-size: 40px; line-height: 48px; }
-        .font-h1 { font-size: 22px; line-height: 30px; }
-        .font-h2 { font-size: 18px; line-height: 26px; }
-        .font-body { font-size: 15px; line-height: 22px; }
-        .font-caption { font-size: 13px; line-height: 18px; }
-        
-        /* 数值强化：字号+2px, 加粗 */
-        .font-value { font-size: 17px; font-weight: 500; }
-        .font-value-large { font-size: 24px; font-weight: 600; }
-
-        /* 优化后的面板样式 */
         .panel-ink {
             background-color: #131C18;
             border: 1px solid #26322D;
             box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         }
-
-        .custom-scrollbar::-webkit-scrollbar {
-            width: 4px;
-            height: 4px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-            background: rgba(0, 0, 0, 0.2);
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: #26322D;
-            border-radius: 2px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-            background: #4D7C6B;
-        }
-
-        @keyframes fade-in {
-            from { opacity: 0; transform: translateY(4px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-fade-in {
-            animation: fade-in 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
-        }
-
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.2); }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #26322D; border-radius: 2px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #4D7C6B; }
+        @keyframes fade-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fade-in { animation: fade-in 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
         .scrollbar-hide::-webkit-scrollbar { display: none; }
         .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 <script type="importmap">
 {
   "imports": {
-    "react": "https://esm.sh/react@^19.2.3",
     "react-dom": "https://esm.sh/react-dom@^19.2.3",
     "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
     "react/": "https://esm.sh/react@^19.2.3/",
-    "@google/genai": "https://esm.sh/@google/genai@^1.34.0"
+    "react": "https://esm.sh/react@^19.2.3",
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
+    "vite": "https://esm.sh/vite@^7.3.1",
+    "@google/genai": "https://esm.sh/@google/genai@^1.36.0"
   }
 }
 </script>
@@ -107,6 +78,6 @@
 <body>
     <div id="root"></div>
     <div id="portal-root"></div>
-    <script type="module" src="index.tsx"></script>
+    <script type="module" src="/index.tsx"></script>
 </body>
 </html>

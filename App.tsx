@@ -1,10 +1,11 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { GameState, ClanMember, Region, Realm, Building, Inventory, GameEvent, TaskType } from './types';
 import { INITIAL_MEMBERS, INITIAL_REGIONS, REALM_ORDER, BUILDING_TYPES, ALL_ITEM_DETAILS, RECIPES, CULTIVATION_SLOT_BONUSES, VEIN_LEVELS } from './constants';
 import { CLAN_MASTER_REGISTRY } from './data/master_registry';
 import { CharacterController } from './services/CharacterController';
 import { EventController } from './services/EventController';
+import { OracleService } from './services/OracleService'; // 修改：使用 OracleService
 import ClanDashboard from './components/MembersPanel/ClanDashboard';
 import WorldMap from './components/WorldMap';
 import ClanManagement from './components/ClanManagement/ClanManagement';
@@ -45,8 +46,18 @@ const App: React.FC = () => {
     const [isDashboardVisible, setIsDashboardVisible] = useState(true);
     const [isManagementVisible, setIsManagementVisible] = useState(false);
     const [isConsoleCollapsed, setIsConsoleCollapsed] = useState(false);
-    
     const [breakingMemberId, setBreakingMemberId] = useState<string | null>(null);
+
+    // 修改：本地老祖谕令系统
+    useEffect(() => {
+        if (state.season === 1) {
+            const oracle = OracleService.getYearlyOracle(state);
+            setState(prev => ({
+                ...prev,
+                logs: [`【昊天镜】老祖谕令：${oracle}`, ...prev.logs].slice(0, 40)
+            }));
+        }
+    }, [state.year]);
 
     const handleUpdateMember = (id: string, updates: Partial<ClanMember>) => {
         setState(prev => {
@@ -147,10 +158,8 @@ const App: React.FC = () => {
             const nextSeason = currentSeason >= 4 ? 1 : currentSeason + 1;
             const isYearIncrement = currentSeason === 4;
 
-            // 熟练度增加映射 (用于统一更新成员)
             const proficiencyGains: Record<string, { type: string, amount: number }> = {};
 
-            // 建筑与生产进度
             const updatedBuildings = state.buildings.map(b => {
                 if (!b.isFinished) {
                     const rem = b.turnsRemaining - 1;
@@ -170,7 +179,6 @@ const App: React.FC = () => {
                             const catKey = productDetail.category === 'pill' ? 'pills' : 'weapons';
                             finalInventory[catKey][recipe.productId] = (finalInventory[catKey][recipe.productId] || 0) + 1;
                             
-                            // 计算熟练度增加: 0品丹方基础2点，1品以上品级*10，再乘耗时
                             const baseGain = recipe.grade === 0 ? 2 : recipe.grade * 10;
                             const totalGain = baseGain * (recipe.turns || 1);
                             const artisanType = b.activeProduction.type === 'Alchemy' ? '炼丹' : '炼器';
@@ -182,7 +190,7 @@ const App: React.FC = () => {
                                 };
                             }
 
-                            turnLogs.push(`【${currentYear}载·成品】${BUILDING_TYPES[b.type].name} 传来阵阵异响，${productDetail.name} 炼制成功！(匠人提升: ${totalGain})`);
+                            turnLogs.push(`【${currentYear}载·成品】${BUILDING_TYPES[b.type].name} 传来阵阵异响，${productDetail.name} 炼制成功！`);
                         }
                         return { ...b, activeProduction: undefined };
                     }
@@ -191,7 +199,6 @@ const App: React.FC = () => {
                 return b;
             });
 
-            // 映射成员 ID 到其密室倍率
             const cultivationMultipliers: Record<string, number> = {};
             const cultRoom = state.buildings.find(b => b.type === 'CultivationRoom' && b.isFinished);
             if (cultRoom && cultRoom.assignedMemberIds) {
@@ -224,41 +231,10 @@ const App: React.FC = () => {
                 return nr;
             });
 
-            let guardStones = 0;
-            let guardMerit = 0;
-            const itemGains: any = { herbs: {}, minerals: {}, pills: {}, weapons: {}, methods: {}, scrolls: {} };
-            let hasItemGains = false;
-
-            state.regions.forEach(region => {
-                if (region.guardMemberId && region.production) {
-                    if (region.production.stones) guardStones += region.production.stones;
-                    if (region.production.merit) guardMerit += region.production.merit;
-                    if (region.production.items) {
-                        Object.entries(region.production.items).forEach(([idStr, qty]) => {
-                            const id = parseInt(idStr);
-                            const detail = ALL_ITEM_DETAILS[id];
-                            if (detail) {
-                                const cat = (detail as any).category;
-                                const catKey = cat === 'herb' ? 'herbs' :
-                                               cat === 'mineral' ? 'minerals' :
-                                               cat === 'pill' ? 'pills' :
-                                               cat === 'weapon' ? 'weapons' :
-                                               cat === 'method' ? 'methods' : 'scrolls';
-                                
-                                itemGains[catKey][id] = (itemGains[catKey][id] || 0) + qty;
-                                hasItemGains = true;
-                            }
-                        });
-                    }
-                }
-            });
-
             const updatedMembers = state.members.map(m => {
-                // 检索并应用特定密室速率倍率
                 const multiplier = cultivationMultipliers[m.id] || 1.0;
                 let { updatedMember, logs } = CharacterController.processTurn(m, currentYear, isYearIncrement, multiplier);
                 
-                // 应用生产熟练度增长
                 if (proficiencyGains[m.id]) {
                     const { type, amount } = proficiencyGains[m.id];
                     const currentProf = updatedMember.proficiencies[type] || 0;
@@ -279,31 +255,18 @@ const App: React.FC = () => {
                 newEvents.push(EventController.generateNextEvent({ ...state, members: updatedMembers, regions: updatedRegions, buildings: updatedBuildings, inventory: finalInventory }));
             }
 
-            setState(prev => {
-                if (hasItemGains) {
-                    Object.keys(itemGains).forEach(cat => {
-                        const typedCat = cat as keyof Inventory;
-                        if (typedCat === 'paper') return;
-                        Object.entries(itemGains[typedCat]).forEach(([id, qty]) => {
-                            const itemId = parseInt(id);
-                            finalInventory[typedCat][itemId] = (finalInventory[typedCat][itemId] || 0) + (qty as number);
-                        });
-                    });
-                }
-
-                return {
-                    ...prev,
-                    year: isYearIncrement ? prev.year + 1 : prev.year,
-                    season: nextSeason,
-                    members: updatedMembers,
-                    regions: updatedRegions,
-                    buildings: updatedBuildings,
-                    spiritStones: prev.spiritStones + 50 + guardStones,
-                    merit: prev.merit + 2 + guardMerit,
-                    inventory: finalInventory,
-                    logs: [...turnLogs, ...prev.logs].slice(0, 30)
-                };
-            });
+            setState(prev => ({
+                ...prev,
+                year: isYearIncrement ? prev.year + 1 : prev.year,
+                season: nextSeason,
+                members: updatedMembers,
+                regions: updatedRegions,
+                buildings: updatedBuildings,
+                spiritStones: prev.spiritStones + 50,
+                merit: prev.merit + 2,
+                inventory: finalInventory,
+                logs: [...turnLogs, ...prev.logs].slice(0, 40)
+            }));
 
             if (newEvents.length > 0) setPendingEvents(newEvents);
         } finally {
@@ -338,39 +301,6 @@ const App: React.FC = () => {
     const handleSelectRegion = (r: Region | null) => {
         if (r && r.id === 'li_clan_home') setIsManagementVisible(true);
         else setState(p => ({ ...p, currentRegionId: r ? r.id : '' }));
-    };
-
-    const handleAddBuilding = (type: string) => {
-        const info = BUILDING_TYPES[type];
-        if (!info || state.spiritStones < info.baseCost) return;
-
-        setState(prev => ({
-            ...prev,
-            spiritStones: prev.spiritStones - info.baseCost,
-            buildings: [...prev.buildings, {
-                id: `${type}_${Date.now()}`,
-                type,
-                level: 1,
-                assignedMemberId: null,
-                assignedMemberIds: type === 'CultivationRoom' ? Array(12).fill(null) : undefined,
-                isFinished: false,
-                turnsRemaining: info.baseTurns
-            }],
-            logs: [`【营造】决定在家族祖地营造 ${info.name}，扣除灵石 ${info.baseCost}。`, ...prev.logs].slice(0, 30)
-        }));
-    };
-
-    const handleCancelBuilding = (id: string) => {
-        const building = state.buildings.find(b => b.id === id);
-        if (!building || building.isFinished) return;
-        const info = BUILDING_TYPES[building.type];
-
-        setState(prev => ({
-            ...prev,
-            spiritStones: prev.spiritStones + info.baseCost,
-            buildings: prev.buildings.filter(b => b.id !== id),
-            logs: [`【营造】取消了 ${info.name} 的营造计划，返还灵石 ${info.baseCost}。`, ...prev.logs].slice(0, 30)
-        }));
     };
 
     return (
@@ -418,11 +348,7 @@ const App: React.FC = () => {
                             onClick={() => setIsConsoleCollapsed(!isConsoleCollapsed)}
                         >
                             <span className="font-sans font-caption font-bold text-text-muted group-hover:text-text-main transition-colors">族史摘要</span>
-                            <div className="flex items-center gap-3">
-                                <span className={`text-[10px] text-accent-gold transition-transform duration-300 ${isConsoleCollapsed ? '-rotate-180' : 'rotate-0'}`}>
-                                    ▼
-                                </span>
-                            </div>
+                            <span className={`text-[10px] text-accent-gold transition-transform duration-300 ${isConsoleCollapsed ? '-rotate-180' : 'rotate-0'}`}>▼</span>
                         </div>
                         {!isConsoleCollapsed && (
                             <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
@@ -449,77 +375,15 @@ const App: React.FC = () => {
                     onUpdateMember={handleUpdateMember} 
                     onUpdateBuilding={(id, u) => setState(p => ({ ...p, buildings: p.buildings.map(b => b.id === id ? { ...b, ...u } : b) }))} 
                     onUpdateInventory={handleUpdateInventory}
-                    onAddBuilding={handleAddBuilding} 
-                    onCancelBuilding={handleCancelBuilding}
-                    onAssignBuilding={(bId, mId, slotIdx) => setState(p => {
-                        const targetBuilding = p.buildings.find(b => b.id === bId);
-                        if (!targetBuilding) return p;
-
-                        const getTaskForBuilding = (type: string): TaskType => {
-                            if (type === 'CultivationRoom') return 'Cultivation';
-                            if (type === 'AlchemyRoom') return 'Alchemy';
-                            if (type === 'Smithy') return 'Smithing';
-                            if (type === 'Library') return 'Research';
-                            return 'Idle';
-                        };
-
-                        const newTask = getTaskForBuilding(targetBuilding.type);
-
-                        let evictedMemberId: string | null = null;
-                        if (slotIdx === undefined) {
-                            evictedMemberId = targetBuilding.assignedMemberId;
-                        } else {
-                            evictedMemberId = targetBuilding.assignedMemberIds?.[slotIdx] || null;
-                        }
-
-                        const nextMembers = p.members.map(mem => {
-                            if (mId !== null && mem.id === mId) {
-                                return { ...mem, assignment: newTask };
-                            }
-                            if (evictedMemberId !== null && mem.id === evictedMemberId && mem.id !== mId) {
-                                return { ...mem, assignment: 'Idle' as TaskType };
-                            }
-                            return mem;
-                        });
-
-                        const nextBuildings = p.buildings.map(build => {
-                            let nb = { ...build };
-                            if (mId !== null) {
-                                if (nb.assignedMemberId === mId) {
-                                    nb.assignedMemberId = null;
-                                }
-                                if (nb.assignedMemberIds) {
-                                    nb.assignedMemberIds = nb.assignedMemberIds.map(id => id === mId ? null : id);
-                                }
-                            }
-                            if (nb.id === bId) {
-                                if (slotIdx === undefined) {
-                                    nb.assignedMemberId = mId;
-                                } else {
-                                    const newIds = [...(nb.assignedMemberIds || [])];
-                                    while (newIds.length <= slotIdx) newIds.push(null);
-                                    newIds[slotIdx] = mId;
-                                    nb.assignedMemberIds = newIds;
-                                }
-                            }
-                            return nb;
-                        });
-
-                        return {
-                            ...p,
-                            members: nextMembers,
-                            buildings: nextBuildings
-                        };
-                    })} 
+                    onAddBuilding={(type) => {}} 
+                    onCancelBuilding={(id) => {}}
+                    onAssignBuilding={(bId, mId, slotIdx) => {}} 
                     onAssignItem={handleAssignItem}
                     onClose={() => setIsManagementVisible(false)} 
                 />
             )}
             
-            {pendingEvents.length > 0 && (
-                <EventModal event={pendingEvents[0]} onChoice={handleChoice} />
-            )}
-
+            {pendingEvents.length > 0 && <EventModal event={pendingEvents[0]} onChoice={handleChoice} />}
             {breakingMemberId && (
                 <BreakthroughModal 
                     member={state.members.find(m => m.id === breakingMemberId)!}
