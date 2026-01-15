@@ -23,9 +23,9 @@ export type RootGrade = '凡人' | '伪灵根' | '下品灵根' | '中品灵根'
 export type DevelopmentPlan = 'Combat' | 'Alchemy' | 'Smithing' | 'Talisman' | 'Balanced';
 
 export type BuildingCategory = '资源产出' | '家族功能' | '修行基础';
-export type RegionType = 'lake' | 'mountain' | 'forest' | 'city' | 'sect' | 'ruins' | 'cave' | 'island' | 'desert' | 'mine' | 'field';
+export type RegionType = 'lake' | 'mountain' | 'forest' | 'city' | 'sect' | 'ruins' | 'cave' | 'island' | 'desert' | 'mine' | 'field' | 'volcano';
 export type RegionCategory = 'Stakeholder' | 'Natural' | 'Mystic' | 'Resource';
-export type FactionType = '望月李氏' | '北寒宗' | '天一剑宗' | '离火门' | '魏家' | '邵家' | '无';
+export type FactionType = '望月李氏' | '北寒宗' | '天一剑宗' | '离火门' | '魏家' | '邵家' | '齐家' | '万花谷' | '无';
 export type MethodType = 'Cultivation' | 'Combat' | 'Movement';
 
 export interface EventChoice {

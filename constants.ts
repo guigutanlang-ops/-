@@ -1,4 +1,3 @@
-
 import { SpecializedTalents, BuildingCategory, Realm } from './types';
 import { RECIPES_DATA } from './data/recipes';
 import { METHODS_DATA } from './data/methods';
@@ -14,12 +13,14 @@ import { PILLS } from './data/pills';
 import { HERBS } from './data/herbs';
 import { MINERALS } from './data/minerals';
 import { ASPIRATIONS_DATA } from './data/aspirations';
+import { IMAGE_ASSETS } from './assets/imageRegistry';
 
 export interface BuildingMetadata {
     name: string;
     desc: string;
     baseCost: number;
-    icon: string;
+    icon: string;       // 仍然保留 Emoji 作为兜底
+    image?: string;     // 新增：图片资源路径
     category: BuildingCategory;
     baseTurns: number;
     requirements: {
@@ -42,7 +43,14 @@ export const CULTIVATION_SLOT_BONUSES: Record<string, number[]> = {
     'Bing': [1.6, 1.5, 1.4, 1.3]
 };
 
-export const BUILDING_TYPES = BUILDING_TYPES_DATA;
+// 注入图片路径到建筑配置
+export const BUILDING_TYPES: Record<string, BuildingMetadata> = Object.fromEntries(
+    Object.entries(BUILDING_TYPES_DATA).map(([key, value]) => [
+        key,
+        { ...value, image: (IMAGE_ASSETS.BUILDINGS as any)[key] }
+    ])
+);
+
 export const RECIPES = RECIPES_DATA;
 export const INITIAL_REGIONS = INITIAL_REGIONS_DATA;
 export const INITIAL_MEMBERS = INITIAL_MEMBERS_DATA;

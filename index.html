@@ -1,9 +1,8 @@
-
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>玄鉴仙族：昊天纪元</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@600;900&display=swap" rel="stylesheet">
@@ -24,7 +23,7 @@
                     fontFamily: {
                         'serif': ['"Noto Serif SC"', 'serif'],
                         'sans': ['"Noto Sans SC"', 'sans-serif'],
-                        'cursive': ['"Ma Shan Zheng"', 'cursive']
+                        'cursive': ['"Ma+Shan+Zheng"', 'cursive']
                     }
                 }
             }
@@ -36,6 +35,9 @@
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
             text-rendering: optimizeLegibility;
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            user-select: none;
         }
         html, body {
             margin: 0;
@@ -43,39 +45,104 @@
             width: 100%;
             height: 100%;
             overflow: hidden;
+            background-color: #000;
+        }
+        #root {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+            background: #0a0f0d;
+        }
+
+        .game-canvas {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 1920px;
+            height: 1080px;
             background-color: #0E1512;
-            color: #EDEDED;
-            font-family: 'Noto Sans SC', sans-serif;
+            transform-origin: center center;
+            margin-left: -960px; 
+            margin-top: -540px;
+            overflow: hidden;
+            box-shadow: 0 0 100px rgba(0,0,0,1);
         }
-        .panel-ink {
-            background-color: #131C18;
-            border: 1px solid #26322D;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+
+        .world-map-main {
+            background-color: #f4e4bc;
+            background-image: 
+                radial-gradient(circle at 50% 50%, rgba(201, 160, 99, 0.05) 0%, transparent 80%),
+                url('https://www.transparenttextures.com/patterns/parchment.png');
+            position: relative;
         }
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; height: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.2); }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #26322D; border-radius: 2px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #4D7C6B; }
-        @keyframes fade-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
-        .animate-fade-in { animation: fade-in 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards; }
-        .scrollbar-hide::-webkit-scrollbar { display: none; }
-        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
+        .spirit-vein-path {
+            stroke-dasharray: 1000;
+            stroke-dashoffset: 1000;
+            animation: vein-flow 30s linear infinite;
+            filter: blur(1.5px) opacity(0.25);
+        }
+
+        @keyframes vein-flow {
+            to { stroke-dashoffset: 0; }
+        }
+
+        .mist-layer {
+            position: absolute;
+            inset: -100%;
+            width: 300%;
+            height: 300%;
+            background-image: url('https://www.transparenttextures.com/patterns/asfalt-dark.png');
+            opacity: 0.08;
+            mix-blend-mode: screen;
+            pointer-events: none;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.3); }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #3a4a44; border-radius: 3px; }
+        
+        @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+        .animate-fade-in { animation: fade-in 0.8s ease-out forwards; }
+
+        /* 势力边界流动动画 */
+        .territory-dashed-border {
+            stroke-dasharray: 10, 10;
+            animation: border-dash-flow 15s linear infinite;
+        }
+
+        @keyframes border-dash-flow {
+            from { stroke-dashoffset: 200; }
+            to { stroke-dashoffset: 0; }
+        }
     </style>
 <script type="importmap">
 {
   "imports": {
-    "react-dom": "https://esm.sh/react-dom@^19.2.3",
+    "react": "https://esm.sh/react@^19.2.3",
     "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
     "react/": "https://esm.sh/react@^19.2.3/",
-    "react": "https://esm.sh/react@^19.2.3",
-    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
-    "vite": "https://esm.sh/vite@^7.3.1"
+    "react-dom": "https://esm.sh/react-dom@^19.2.3",
+    "vite": "https://esm.sh/vite@^7.3.1",
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2"
   }
 }
 </script>
 </head>
 <body>
     <div id="root"></div>
+
+    <!-- 势力范围核心滤镜定义 -->
+    <svg style="position: absolute; width: 0; height: 0;" aria-hidden="true">
+        <defs>
+            <!-- 势力区块水墨感渲染：增加湍流感，使线条不那么死板 -->
+            <filter id="territory-paper-ink">
+                <feTurbulence type="fractalNoise" baseFrequency="0.02" numOctaves="3" result="noise" />
+                <feDisplacementMap in="SourceGraphic" in2="noise" scale="3" xChannelSelector="R" yChannelSelector="G" />
+            </filter>
+        </defs>
+    </svg>
+
     <div id="portal-root"></div>
     <script type="module" src="/index.tsx"></script>
 </body>

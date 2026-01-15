@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Building, BuildingCategory } from '../../../types';
 import { BUILDING_TYPES } from '../../../constants';
@@ -49,7 +48,22 @@ const BuildingsTab: React.FC<Props> = ({ buildings, spiritStones, onAddBuilding,
                             <div key={type} className={`p-6 bg-black/40 border rounded shadow-lg transition-all flex flex-col justify-between ${isFinished ? 'border-yellow-900/40 opacity-70' : 'border-yellow-900/20'}`}>
                                 <div>
                                     <div className="flex justify-between items-center mb-4">
-                                        <span className="text-3xl">{info.icon}</span>
+                                        <div className="w-16 h-16 bg-black/60 rounded border border-white/5 flex items-center justify-center p-2 overflow-hidden">
+                                            {info.image ? (
+                                                <img src={info.image} alt={info.name} className="w-full h-full object-contain" onError={(e) => {
+                                                    (e.target as HTMLImageElement).style.display = 'none';
+                                                    const parent = (e.target as HTMLElement).parentElement;
+                                                    if(parent) {
+                                                        const span = document.createElement('span');
+                                                        span.className = "text-3xl";
+                                                        span.innerText = info.icon;
+                                                        parent.appendChild(span);
+                                                    }
+                                                }} />
+                                            ) : (
+                                                <span className="text-3xl">{info.icon}</span>
+                                            )}
+                                        </div>
                                         <span className="text-[10px] bg-yellow-900/20 px-2 py-1 rounded text-yellow-600 font-bold uppercase tracking-widest">{info.category}</span>
                                     </div>
                                     <h4 className="text-lg font-bold text-yellow-500 mb-2">{info.name}</h4>
@@ -102,7 +116,6 @@ const BuildingsTab: React.FC<Props> = ({ buildings, spiritStones, onAddBuilding,
                 {renderBuildingList('修行基础')}
             </div>
 
-            {/* 确认建造弹窗 */}
             {confirmingBuildType && (
                 <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
                   <div className="-translate-y-[70px]">
@@ -122,7 +135,6 @@ const BuildingsTab: React.FC<Props> = ({ buildings, spiritStones, onAddBuilding,
                 </div>
             )}
 
-            {/* 确认取消弹窗 */}
             {confirmingCancelId && (
                 <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
                   <div className="-translate-y-[70px]">
