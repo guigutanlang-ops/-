@@ -1,8 +1,9 @@
-import React, { useState, useMemo, useRef, useCallback, useEffect } from 'react';
+
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Region, ClanMember } from '../../types';
-import { REALM_ORDER } from '../../constants';
-import RegionMarker from './RegionMarker';
-import FactionTerritoryLayer from './FactionTerritoryLayer';
+import SettlementMarker from './SettlementMarker';
+import FactionAuraLayer from './FactionAuraLayer';
+import { IMAGE_ASSETS } from '../../assets/imageRegistry';
 
 interface Props {
     regions: Region[];
@@ -15,55 +16,70 @@ interface Props {
     onOverviewChange?: (isOverview: boolean) => void;
 }
 
+// 定义世界地图的实际逻辑尺寸（大于视口 1920x1080）
+const WORLD_W = 9600; 
+const WORLD_H = 5400;
+const VIEW_W = 1920;
+const VIEW_H = 1080;
+
+const ZOOM_STEPS = [0.2,0.3]; // 允许缩到比 1.0 小以看到全貌
+const INITIAL_ZOOM_IDX = 0; // 默认 1.0
+
 const WorldMap: React.FC<Props> = ({ 
     regions, 
-    members, 
     onSelectRegion, 
     currentRegionId, 
     onOverviewChange 
 }) => {
-    const VIEW_W = 1920;
-    const VIEW_H = 1080;
-    const OVERVIEW_SCALE = 1.0; 
-    const MIN_PLAY_SCALE = 1.2;
-    const MAX_SCALE = 4.0;
-
-    const [camera, setCamera] = useState({ x: 0, y: 0, scale: 1.4 }); 
+    const [zoomIdx, setZoomIdx] = useState(INITIAL_ZOOM_IDX);
+    const scale = ZOOM_STEPS[zoomIdx];
+    
+    // camera 存储的是摄像机中心在【原始世界坐标(3200x1800)】中的坐标
+    const [camera, setCamera] = useState({ x: WORLD_W / 2, y: WORLD_H / 2 }); 
     const [isDragging, setIsDragging] = useState(false);
-    const [hoveredFaction, setHoveredFaction] = useState<string | null>(null);
     const lastMousePos = useRef({ x: 0, y: 0 });
 
-    const isOverview = camera.scale <= OVERVIEW_SCALE;
+    const isOverview = scale < 0.8;
 
-    useEffect(() => {
-        onOverviewChange?.(isOverview);
-    }, [isOverview, onOverviewChange]);
+    /**
+     * 核心：计算摄像机合法位置
+     * 规则：缩放后的地图边缘绝对不能进入视口内部
+     */
+    const getClampedCamera = useCallback((cx: number, cy: number, currentScale: number) => {
+        // 缩放后地图在视口中表现的实际尺寸
+        const scaledMapW = WORLD_W * currentScale;
+        const scaledMapH = WORLD_H * currentScale;
 
-    const getClampedPos = useCallback((x: number, y: number, scale: number) => {
-        if (scale <= OVERVIEW_SCALE) return { x: 0, y: 0 };
-        const scaledW = VIEW_W * scale;
-        const scaledH = VIEW_H * scale;
-        const limitX = Math.max(0, (scaledW - VIEW_W) / 2);
-        const limitY = Math.max(0, (scaledH - VIEW_H) / 2);
+        // 计算摄像机在原始坐标系下的可移动半幅范围
+        // 如果缩放后的地图比视口还小，则强制居中
+        const limitX = scaledMapW > VIEW_W 
+            ? (scaledMapW - VIEW_W) / (2 * currentScale)
+            : 0;
+        const limitY = scaledMapH > VIEW_H 
+            ? (scaledMapH - VIEW_H) / (2 * currentScale)
+            : 0;
+
+        const centerX = WORLD_W / 2;
+        const centerY = WORLD_H / 2;
+
         return {
-            x: Math.max(-limitX, Math.min(limitX, x)),
-            y: Math.max(-limitY, Math.min(limitY, y))
+            x: Math.max(centerX - limitX, Math.min(centerX + limitX, cx)),
+            y: Math.max(centerY - limitY, Math.min(centerY + limitY, cy))
         };
     }, []);
 
+    useEffect(() => {
+        onOverviewChange?.(isOverview);
+        // 缩放变化时，校准摄像机位置
+        setCamera(prev => getClampedCamera(prev.x, prev.y, scale));
+    }, [isOverview, onOverviewChange, scale, getClampedCamera]);
+
     const handleZoom = (direction: 'in' | 'out') => {
-        setCamera(prev => {
-            let nextScale: number;
-            if (direction === 'out') {
-                if (prev.scale <= MIN_PLAY_SCALE) nextScale = OVERVIEW_SCALE;
-                else nextScale = prev.scale * 0.8;
-            } else {
-                if (prev.scale <= OVERVIEW_SCALE) nextScale = MIN_PLAY_SCALE;
-                else nextScale = Math.min(MAX_SCALE, prev.scale * 1.25);
-            }
-            nextScale = Math.max(OVERVIEW_SCALE, Math.min(MAX_SCALE, nextScale));
-            const { x, y } = getClampedPos(prev.x, prev.y, nextScale);
-            return { x, y, scale: nextScale };
+        setZoomIdx(prev => {
+            const nextIdx = direction === 'in' 
+                ? Math.min(prev + 1, ZOOM_STEPS.length - 1) 
+                : Math.max(0, prev - 1);
+            return nextIdx;
         });
     };
 
@@ -72,93 +88,113 @@ const WorldMap: React.FC<Props> = ({
     };
 
     const handleMouseDown = (e: React.MouseEvent) => {
-        if (e.button !== 0 || isOverview) return;
+        if (e.button !== 0) return;
         setIsDragging(true);
         lastMousePos.current = { x: e.clientX, y: e.clientY };
     };
 
     const handleMouseMove = (e: React.MouseEvent) => {
-        if (!isDragging || isOverview) return;
+        if (!isDragging) return;
+        // 鼠标移动的像素距离
         const dx = e.clientX - lastMousePos.current.x;
         const dy = e.clientY - lastMousePos.current.y;
+        
+        // 转换为世界坐标系下的移动（需要除以缩放倍率）
         setCamera(prev => {
-            const nextX = prev.x + dx;
-            const nextY = prev.y + dy;
-            const clamped = getClampedPos(nextX, nextY, prev.scale);
-            return { ...clamped, scale: prev.scale };
+            const nextX = prev.x - dx / scale;
+            const nextY = prev.y - dy / scale;
+            return getClampedCamera(nextX, nextY, scale);
         });
+        
         lastMousePos.current = { x: e.clientX, y: e.clientY };
     };
 
     const handleMouseUp = () => setIsDragging(false);
 
-    // 绘制灵脉
-    const spiritVeins = useMemo(() => [
-        "M 960 1080 Q 900 800 960 540 T 960 0", 
-        "M 200 1080 C 400 800 200 400 600 200", 
-        "M 1720 1080 C 1520 800 1720 400 1320 200", 
-    ], []);
+    /**
+     * 计算渲染位置：
+     * 我们需要将世界中心对齐视口中心，然后应用缩放和摄像机位移。
+     */
+    const worldTransform = `
+        translate(${VIEW_W/2}px, ${VIEW_H/2}px) 
+        scale(${scale}) 
+        translate(${-camera.x}px, ${-camera.y}px)
+    `;
+
+    // UI Marker 投影：不随 scale，但需要随 translate
+    const getUIPosition = (regionX: number, regionY: number) => {
+        // 1. 获取据点在世界坐标中的绝对像素位置
+        const absX = (regionX / 100) * WORLD_W;
+        const absY = (regionY / 100) * WORLD_H;
+        
+        // 2. 根据摄像机位置和缩放计算在视口中的屏幕坐标
+        // 公式：(世界点 - 摄像机点) * 缩放 + 视口中心
+        const screenX = (absX - camera.x) * scale + (VIEW_W / 2);
+        const screenY = (absY - camera.y) * scale + (VIEW_H / 2);
+        
+        return { left: `${screenX}px`, top: `${screenY}px` };
+    };
 
     return (
         <div 
-            className={`w-full h-full relative overflow-hidden bg-black ${isOverview ? 'cursor-default' : (isDragging ? 'cursor-grabbing' : 'cursor-grab')}`}
+            className={`w-full h-full relative overflow-hidden bg-[#020403] ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
             onWheel={handleWheel}
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseUp}
         >
-            <div className="absolute inset-0 w-[1920px] h-[1080px] left-1/2 top-1/2 world-map-main origin-center"
+            {/* 1. 世界层：地形、气场 */}
+            <div 
+                className="absolute inset-0 pointer-events-none origin-top-left"
                 style={{ 
-                    transform: `translate(-50%, -50%) translate(${camera.x}px, ${camera.y}px) scale(${camera.scale})`,
-                    transition: isDragging ? 'none' : 'transform 0.5s cubic-bezier(0.2, 0, 0.2, 1)', 
+                    width: WORLD_W, 
+                    height: WORLD_H,
+                    transform: worldTransform,
+                    transition: isDragging ? 'none' : 'transform 0.4s cubic-bezier(0.1, 0.9, 0.2, 1)',
                     willChange: 'transform'
-                }}>
-                
-                {/* 1. 地理底层 */}
-                <svg className="absolute inset-0 w-full h-full pointer-events-none z-0" viewBox="0 0 1920 1080">
-                    {/* 区域着色装饰 */}
-                    <rect width="1920" height="1080" fill="#f4e4bc" />
-                    
-                    {/* 岸标文字 */}
-                    <text x="960" y="150" textAnchor="middle" className="font-cursive text-3xl fill-[#1a1310]/15 select-none tracking-[0.5em]">北岸 · 冰原</text>
-                    <text x="960" y="930" textAnchor="middle" className="font-cursive text-3xl fill-[#1a1310]/15 select-none tracking-[0.5em]">南岸 · 沃野</text>
-                    <text x="250" y="540" textAnchor="middle" className="font-cursive text-3xl fill-[#1a1310]/15 select-none tracking-[0.5em] [writing-mode:vertical-rl]">西岸 · 崇山</text>
-                    <text x="1670" y="540" textAnchor="middle" className="font-cursive text-3xl fill-[#1a1310]/15 select-none tracking-[0.5em] [writing-mode:vertical-rl]">东岸 · 海滨</text>
-
-                    {/* 灵脉流动 */}
-                    {spiritVeins.map((d, i) => (
-                        <path key={`vein-${i}`} d={d} fill="none" stroke={i === 0 ? "#C9A063" : "#4D7C6B"} strokeWidth="1.5" className="spirit-vein-path" />
-                    ))}
-                </svg>
-
-                {/* 2. 势力范围层 (现在包含彩色板块与彩色虚线) */}
-                <FactionTerritoryLayer 
-                    regions={regions} 
-                    hoveredFaction={hoveredFaction} 
-                    isOverview={isOverview} 
-                    scale={camera.scale}
+                }}
+            >
+                {/* 地形底图 - 此时它铺满 WORLD_W x WORLD_H */}
+                <div className="absolute inset-0 z-0 bg-[#0a0f0d]" 
+                     style={{ 
+                        backgroundImage: `url(${IMAGE_ASSETS.MAP.WORLD_BASE})`, 
+                        backgroundSize: '100% 100%',
+                     }} 
                 />
 
-                {/* 3. 云海层 */}
-                <div className="mist-layer z-10" />
-                
-                {/* 4. 地区标记层 */}
+                <div className="absolute inset-0 z-[1] opacity-[0.08] mix-blend-multiply" 
+                     style={{ backgroundImage: `url(${IMAGE_ASSETS.MAP.PAPER_TEXTURE})`, backgroundSize: '500px' }} />
+
+                <FactionAuraLayer regions={regions} scale={scale} />
+            </div>
+
+            {/* 2. UI层：据点 Marker */}
+            <div className="absolute inset-0 pointer-events-none">
                 {regions.map(region => {
                     if (!region.isDiscovered) return null;
-                    const isSelected = currentRegionId === region.id;
+                    const pos = getUIPosition(region.x, region.y);
+                    
+                    // 裁剪不在视口内的 Marker 提升性能
+                    const leftVal = parseFloat(pos.left);
+                    const topVal = parseFloat(pos.top);
+                    if (leftVal < -200 || leftVal > VIEW_W + 200 || topVal < -200 || topVal > VIEW_H + 200) return null;
+
                     return (
                         <div 
-                            key={region.id}
-                            onMouseEnter={() => setHoveredFaction(region.owner)}
-                            onMouseLeave={() => setHoveredFaction(null)}
+                            key={region.id} 
+                            className="absolute pointer-events-auto"
+                            style={{ 
+                                left: pos.left, 
+                                top: pos.top,
+                                transition: isDragging ? 'none' : 'all 0.4s cubic-bezier(0.1, 0.9, 0.2, 1)'
+                            }}
                         >
-                            <RegionMarker 
+                            <SettlementMarker 
                                 region={region}
-                                isHome={region.id === 'li_clan_home'}
-                                isSelected={isSelected}
-                                isOccupied={!!region.activeMission || !!region.guardMemberId}
-                                showLabel={camera.scale > 1.3 || isSelected}
+                                isSelected={currentRegionId === region.id}
+                                scale={scale}
+                                showLabel={scale >= 0.8}
                                 onSelect={onSelectRegion}
                             />
                         </div>
@@ -166,9 +202,18 @@ const WorldMap: React.FC<Props> = ({
                 })}
             </div>
 
-            {/* 操作提示与控制 UI */}
-            <div className={`absolute bottom-10 left-1/2 -translate-x-1/2 px-6 py-3 bg-bg-panel/80 backdrop-blur-md border border-accent-gold/20 rounded-full text-accent-gold/60 text-xs tracking-widest transition-opacity duration-1000 ${isOverview ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
-                {hoveredFaction ? `观测势力：${hoveredFaction}` : '滚轮缩放查看两岸据点 ◈ 鼠标拖拽移动'}
+            {/* 渐变边缘遮罩 - 增强摄像机聚焦感 */}
+            <div className="absolute inset-0 pointer-events-none shadow-[inset_0_0_120px_rgba(0,0,0,0.7)]" />
+
+            {/* 控制台 */}
+            <div className="absolute bottom-8 right-12 flex items-center gap-4 bg-black/60 backdrop-blur-xl px-6 py-3 rounded-full border border-white/10 shadow-2xl">
+                <button onClick={() => handleZoom('out')} className="w-8 h-8 flex items-center justify-center text-gray-500 hover:text-accent-gold transition-all text-2xl font-bold">－</button>
+                <div className="flex gap-2">
+                    {ZOOM_STEPS.map((_, idx) => (
+                        <div key={idx} className={`w-1.5 h-1.5 rounded-full transition-all duration-500 ${idx === zoomIdx ? 'bg-accent-gold scale-150' : 'bg-white/10'}`} />
+                    ))}
+                </div>
+                <button onClick={() => handleZoom('in')} className="w-8 h-8 flex items-center justify-center text-gray-500 hover:text-accent-gold transition-all text-2xl font-bold">＋</button>
             </div>
         </div>
     );

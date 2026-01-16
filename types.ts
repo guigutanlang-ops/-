@@ -17,6 +17,7 @@ export enum Element {
     Earth = '土'
 }
 
+export type SettlementType = 'Capital' | 'Minor' | 'Fort' | 'Resource' | 'Landmark';
 export type TaskType = 'Cultivation' | 'Research' | 'Idle' | 'Mission' | 'Alchemy' | 'Smithing' | 'Recovery' | 'Travel';
 export type TalentTier = '凡人' | '平庸' | '普通' | '超凡' | '天才' | '绝世' | '绝世天骄';
 export type RootGrade = '凡人' | '伪灵根' | '下品灵根' | '中品灵根' | '上品灵根' | '极品灵根';
@@ -75,8 +76,7 @@ export interface Building {
         turnsRemaining: number;
         type: 'Alchemy' | 'Smithing';
     };
-    // 灵脉特有字段
-    veinLevel?: number; // 0:微型, 1:小型, 2:中型, 3:大型, 4:龙脉
+    veinLevel?: number;
     veinExp?: number;
 }
 
@@ -193,6 +193,7 @@ export interface Region {
     y: number;
     type: RegionType;
     category: RegionCategory;
+    settlementType: SettlementType; // 新增：建筑规模
     isDiscovered: boolean;
     resources: string[];
     production?: {

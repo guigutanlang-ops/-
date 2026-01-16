@@ -1,6 +1,8 @@
+
 import React, { useState } from 'react';
 import { Building, BuildingCategory } from '../../../types';
 import { BUILDING_TYPES } from '../../../constants';
+import { getBuildingImage } from '../../../assets/imageRegistry';
 
 interface Props {
     buildings: Building[];
@@ -43,26 +45,24 @@ const BuildingsTab: React.FC<Props> = ({ buildings, spiritStones, onAddBuilding,
                         const isBuilding = b && !b.isFinished;
                         const isFinished = b && b.isFinished;
                         const canAfford = spiritStones >= info.baseCost;
+                        const imageUrl = getBuildingImage(type);
 
                         return (
                             <div key={type} className={`p-6 bg-black/40 border rounded shadow-lg transition-all flex flex-col justify-between ${isFinished ? 'border-yellow-900/40 opacity-70' : 'border-yellow-900/20'}`}>
                                 <div>
                                     <div className="flex justify-between items-center mb-4">
-                                        <div className="w-16 h-16 bg-black/60 rounded border border-white/5 flex items-center justify-center p-2 overflow-hidden">
-                                            {info.image ? (
-                                                <img src={info.image} alt={info.name} className="w-full h-full object-contain" onError={(e) => {
-                                                    (e.target as HTMLImageElement).style.display = 'none';
-                                                    const parent = (e.target as HTMLElement).parentElement;
-                                                    if(parent) {
-                                                        const span = document.createElement('span');
-                                                        span.className = "text-3xl";
-                                                        span.innerText = info.icon;
-                                                        parent.appendChild(span);
-                                                    }
-                                                }} />
-                                            ) : (
-                                                <span className="text-3xl">{info.icon}</span>
-                                            )}
+                                        <div className="w-16 h-16 bg-black/60 rounded border border-white/5 flex items-center justify-center p-2 overflow-hidden relative">
+                                            {/* 优先加载外部图片，失败则显示内置 Emoji */}
+                                            <img 
+                                                src={imageUrl} 
+                                                alt={info.name} 
+                                                className="w-full h-full object-contain relative z-10" 
+                                                onError={(e) => {
+                                                    (e.target as HTMLImageElement).style.opacity = '0';
+                                                    (e.target as HTMLImageElement).nextElementSibling?.classList.remove('hidden');
+                                                }} 
+                                            />
+                                            <span className="text-3xl absolute inset-0 flex items-center justify-center z-0 hidden">{info.icon}</span>
                                         </div>
                                         <span className="text-[10px] bg-yellow-900/20 px-2 py-1 rounded text-yellow-600 font-bold uppercase tracking-widest">{info.category}</span>
                                     </div>
@@ -138,7 +138,7 @@ const BuildingsTab: React.FC<Props> = ({ buildings, spiritStones, onAddBuilding,
             {confirmingCancelId && (
                 <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
                   <div className="-translate-y-[70px]">
-                    <div className="bg-[#1a1310] border-4 border-[#4a3728] p-8 rounded-sm shadow-2xl max-w-sm w-full text-center animate-fade-in ">
+                    <div className="bg-[#1a1310] border-4 border-[#4a3728] p-8 rounded-sm shadow-2xl max-sm w-full text-center animate-fade-in ">
                         <h4 className="text-2xl font-cursive text-red-500 mb-6 tracking-widest">废止营造</h4>
                         <div className="bg-black/60 p-6 rounded-sm border border-white/5 mb-8">
                             <p className="text-gray-300 text-sm leading-relaxed font-serif">
