@@ -13,6 +13,7 @@ const SpiritCursor: React.FC = () => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const mousePos = useRef({ x: 0, y: 0 });
     const sparkles = useRef<Sparkle[]>([]);
+    const lastEmitTime = useRef(0);
 
     useEffect(() => {
         const canvas = canvasRef.current;
@@ -28,17 +29,27 @@ const SpiritCursor: React.FC = () => {
         const onMove = (x: number, y: number) => {
             mousePos.current = { x, y };
             
-            // Generate sparkles on move
-            for(let i = 0; i < 3; i++) {
-                sparkles.current.push({
-                    x: x + (Math.random() - 0.5) * 10,
-                    y: y + (Math.random() - 0.5) * 10,
-                    life: 1.0,
-                    size: Math.random() * 4 + 2,
-                    vx: (Math.random() - 0.5) * 1.5,
-                    vy: (Math.random() - 0.5) * 1.5
-                });
-            }
+            const now = Date.now();
+            // 调整频率：每 50ms 记录一次位置
+            if (now - lastEmitTime.current < 50) return;
+            lastEmitTime.current = now;
+
+            // 延迟 0.01s 生成粒子
+            setTimeout(() => {
+                if (!canvasRef.current) return;
+                
+                // 每次生成 2 个粒子
+                for(let i = 0; i < 2; i++) {
+                    sparkles.current.push({
+                        x: x + (Math.random() - 0.5) * 10,
+                        y: y + (Math.random() - 0.5) * 10,
+                        life: 1.0,
+                        size: Math.random() * 3 + 1.5,
+                        vx: (Math.random() - 0.5) * 1.5,
+                        vy: (Math.random() - 0.5) * 1.5
+                    });
+                }
+            }, 10);
         };
 
         const onMouseMove = (e: MouseEvent) => {
@@ -58,17 +69,7 @@ const SpiritCursor: React.FC = () => {
         const draw = () => {
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             
-            // Add a constant subtle glow at cursor position
-            const { x, y } = mousePos.current;
-            if (x > 0 && y > 0) {
-                const gradient = ctx.createRadialGradient(x, y, 0, x, y, 20);
-                gradient.addColorStop(0, 'rgba(59, 130, 246, 0.2)');
-                gradient.addColorStop(1, 'transparent');
-                ctx.fillStyle = gradient;
-                ctx.beginPath();
-                ctx.arc(x, y, 20, 0, Math.PI * 2);
-                ctx.fill();
-            }
+            // 移除原本跟随鼠标的固定光点 (Lines 69-79 original code)
 
             sparkles.current = sparkles.current.filter(s => s.life > 0);
             

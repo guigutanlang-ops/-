@@ -408,7 +408,7 @@ const App: React.FC = () => {
                             Object.entries(nr.production.items).forEach(([id, qty]) => {
                                 addClanItem(parseInt(id), qty);
                             });
-                            turnLogs.push(`【${currentYear}载·岁贡】${nr.name} 的物产已入族库。`);
+                            turnLogs.push(`【${currentYear}载·产出】${nr.name} 的物产已入族库。`);
                         }
                     }
                 }
