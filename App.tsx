@@ -231,6 +231,24 @@ const App: React.FC = () => {
 
     const handleAssignMission = (memberId: string, missionType: string) => {
         const regionId = state.currentRegionId;
+        
+        // Handle Recall
+        if (missionType === 'Recall') {
+            setState(prev => {
+                const member = prev.members.find(m => m.id === memberId);
+                const region = prev.regions.find(r => (r.activeMission?.memberId === memberId) || (r.guardMemberId === memberId));
+                if (!member || !region) return prev;
+
+                return {
+                    ...prev,
+                    members: prev.members.map(m => m.id === memberId ? { ...m, assignment: 'Idle' as TaskType } : m),
+                    regions: prev.regions.map(r => r.id === region.id ? { ...r, activeMission: undefined, guardMemberId: undefined } : r),
+                    logs: [`【撤回】老祖降旨，命 ${member.name} 立即从 ${region.name} 撤回族中。`, ...prev.logs].slice(0, 30)
+                };
+            });
+            return;
+        }
+
         if (!regionId) return;
 
         setState(prev => {
@@ -243,25 +261,40 @@ const App: React.FC = () => {
                 m.id === memberId ? { ...m, assignment: 'Mission' as TaskType } : m
             );
 
-            // Update region with mission info
-            const updatedRegions = prev.regions.map(r => 
-                r.id === regionId ? {
+            // Update region
+            const updatedRegions = prev.regions.map(r => {
+                if (r.id !== regionId) return r;
+                
+                // If mission type is Guard, it is permanent stationing
+                if (missionType === 'Guard') {
+                    return {
+                        ...r,
+                        guardMemberId: memberId,
+                        activeMission: undefined // Clear any active mission
+                    };
+                }
+
+                return {
                     ...r,
                     activeMission: {
                         memberId,
-                        turnsRemaining: 2, // Standard 2 seasons mission
+                        turnsRemaining: 2, 
                         totalTurns: 2,
                         type: missionType
                     }
-                } : r
-            );
+                };
+            });
+
+            const logMsg = missionType === 'Guard' 
+                ? `【驻守】${member.name} 领命坐镇 ${region.name}，保一方灵地。`
+                : `【派遣】${member.name} 领老祖法旨，前往 ${region.name} 执行任务。`;
 
             return {
                 ...prev,
                 members: updatedMembers,
                 regions: updatedRegions,
-                currentRegionId: '', // Close panel
-                logs: [`【派遣】${member.name} 领老祖法旨，前往 ${region.name} 执行任务。`, ...prev.logs].slice(0, 30)
+                currentRegionId: '', 
+                logs: [logMsg, ...prev.logs].slice(0, 30)
             };
         });
     };
@@ -272,16 +305,45 @@ const App: React.FC = () => {
         try {
             let turnLogs: string[] = [];
             let newEvents: GameEvent[] = [];
-            let finalInventory = { ...state.inventory };
             const currentYear = state.year;
             const currentSeason = state.season;
             const nextSeason = currentSeason >= 4 ? 1 : currentSeason + 1;
             const isYearIncrement = currentSeason === 4;
             const proficiencyGains: Record<string, { type: string, amount: number }> = {};
+            let spiritStonesDelta = 50;
+            let meritDelta = 2;
             
             // Deep copy of inventory to avoid mutation
             const newInventoryState = { ...state.inventory };
             const clonedCategories: Partial<Record<keyof Inventory, Record<number, number>>> = {};
+
+            // Helper to add item to clan inventory
+            const addClanItem = (id: number, qty: number) => {
+                const detail = ALL_ITEM_DETAILS[id] as any;
+                if (!detail) return;
+                const cat = detail.category;
+                const catKey = cat === 'herb' ? 'herbs' :
+                               cat === 'mineral' ? 'minerals' :
+                               cat === 'pill' ? 'pills' :
+                               cat === 'weapon' ? 'weapons' :
+                               cat === 'method' ? 'methods' : 
+                               cat === 'paper' ? 'paper' : 'scrolls';
+                
+                if (catKey === 'paper') {
+                    newInventoryState.paper += qty;
+                    return;
+                }
+                if (catKey === 'scrolls') return;
+                
+                const typedCat = catKey as 'herbs' | 'minerals' | 'pills' | 'weapons' | 'methods';
+
+                if (!clonedCategories[typedCat]) {
+                    clonedCategories[typedCat] = { ...(newInventoryState[typedCat] as Record<number, number>) };
+                    (newInventoryState as any)[typedCat] = clonedCategories[typedCat];
+                }
+                const catObj = clonedCategories[typedCat]!;
+                catObj[id] = (catObj[id] || 0) + qty;
+            };
 
             const updatedBuildings = state.buildings.map(b => {
                 if (!b.isFinished) {
@@ -297,22 +359,13 @@ const App: React.FC = () => {
                     if (rem <= 0) {
                         const recipe = [...RECIPES.Alchemy, ...RECIPES.Smithing].find(r => r.id === b.activeProduction!.recipeId);
                         if (recipe) {
-                            const productDetail = ALL_ITEM_DETAILS[recipe.productId] as any;
-                            const catKey = (productDetail.category === 'pill' ? 'pills' : 'weapons') as keyof Inventory;
-                            
-                            // Immutable update for product
-                            if (!clonedCategories[catKey]) {
-                                clonedCategories[catKey] = { ...(newInventoryState[catKey] as Record<number, number>) };
-                                (newInventoryState as any)[catKey] = clonedCategories[catKey];
-                            }
-                            const catObj = clonedCategories[catKey]!;
-                            catObj[recipe.productId] = (catObj[recipe.productId] || 0) + 1;
+                            addClanItem(recipe.productId, 1);
 
                             const baseGain = recipe.grade === 0 ? 2 : recipe.grade * 10;
                             const totalGain = baseGain * (recipe.turns || 1);
                             const artisanType = b.activeProduction.type === 'Alchemy' ? '炼丹' : '炼器';
                             if (b.assignedMemberId) proficiencyGains[b.assignedMemberId] = { type: artisanType, amount: (proficiencyGains[b.assignedMemberId]?.amount || 0) + totalGain };
-                            turnLogs.push(`【${currentYear}载·成品】${BUILDING_TYPES[b.type].name} 传来阵阵异响，${productDetail.name} 炼制成功！`);
+                            turnLogs.push(`【${currentYear}载·成品】${BUILDING_TYPES[b.type].name} 传来阵阵异响，已炼成重宝。`);
                         }
                         return { ...b, activeProduction: undefined };
                     }
@@ -321,16 +374,45 @@ const App: React.FC = () => {
                 return b;
             });
 
+            // Keep track of members being updated
+            const memberUpdates: Record<string, Partial<ClanMember>> = {};
+
             const updatedRegions = state.regions.map(r => {
                 let nr = { ...r };
+                // 1. Handle regular missions (one-time completion)
                 if (nr.activeMission) {
                     const rem = nr.activeMission.turnsRemaining - 1;
                     if (rem <= 0) {
                         const member = state.members.find(m => m.id === nr.activeMission!.memberId);
-                        if (member) newEvents.push(EventController.generateMissionResult(member, nr, currentYear));
+                        if (member) {
+                            const outcome = EventController.generateMissionResult(member, nr, currentYear);
+                            newEvents.push(outcome);
+                        }
                         nr.activeMission = undefined;
                     } else nr.activeMission = { ...nr.activeMission, turnsRemaining: rem };
                 }
+
+                // 2. Handle steady yield for Occupied Resource/Stakeholder points with a Guardian
+                if (nr.owner === '望月李氏' && nr.id !== 'li_clan_home') {
+                    const guardian = state.members.find(m => m.id === nr.guardMemberId && m.status === 'healthy');
+                    
+                    if (guardian && nr.production) {
+                        if (nr.production.stones) {
+                            spiritStonesDelta += nr.production.stones;
+                            turnLogs.push(`【${currentYear}载·规费】驻守于 ${nr.name} 的族人上缴了其采集的灵石。`);
+                        }
+                        if (nr.production.merit) {
+                            meritDelta += nr.production.merit;
+                        }
+                        if (nr.production.items) {
+                            Object.entries(nr.production.items).forEach(([id, qty]) => {
+                                addClanItem(parseInt(id), qty);
+                            });
+                            turnLogs.push(`【${currentYear}载·岁贡】${nr.name} 的物产已入族库。`);
+                        }
+                    }
+                }
+
                 return nr;
             });
 
@@ -349,6 +431,8 @@ const App: React.FC = () => {
             }
 
             const updatedMembers = state.members.map(m => {
+                // If member is guarding, they might get a multiplier too? 
+                // Usually guardian mission gives less cult than Idle or Cultivation.
                 const multiplier = cultivationMultipliers[m.id] || 1.0;
                 let { updatedMember, logs } = CharacterController.processTurn(m, currentYear, isYearIncrement, multiplier);
                 if (proficiencyGains[m.id]) {
@@ -369,8 +453,8 @@ const App: React.FC = () => {
                 members: updatedMembers,
                 regions: updatedRegions,
                 buildings: updatedBuildings,
-                spiritStones: prev.spiritStones + 50,
-                merit: prev.merit + 2,
+                spiritStones: prev.spiritStones + spiritStonesDelta,
+                merit: prev.merit + meritDelta,
                 inventory: newInventoryState,
                 logs: [...turnLogs, ...prev.logs].slice(0, 40)
             }));
@@ -475,22 +559,15 @@ const App: React.FC = () => {
                         onSelectRegion={(r) => r?.id === 'li_clan_home' ? setIsManagementVisible(true) : setState(p => ({ ...p, currentRegionId: r ? r.id : '' }))} 
                         onUpdateMember={handleUpdateMember} 
                         onUpdateRegion={(id, u) => setState(p => ({ ...p, regions: p.regions.map(r => r.id === id ? { ...r, ...u } : r) }))}
+                        onAssignMission={handleAssignMission}
                         onOverviewChange={setIsMapOverview} 
                     />
                 </div>
 
-                {selectedRegion && selectedRegion.id !== 'li_clan_home' && (
-                    <RegionInfoPanel 
-                        region={selectedRegion} 
-                        members={state.members}
-                        onClose={() => setState(p => ({ ...p, currentRegionId: '' }))} 
-                        onAssignMission={handleAssignMission}
-                    />
-                )}
-
                 <header 
                     className={`absolute top-0 left-0 w-full h-28 flex items-start justify-between px-16 z-20 pointer-events-none pt-4 transition-all duration-500 ease-in-out
                         ${isMapOverview ? 'opacity-0 -translate-y-[120%]' : 'opacity-100 translate-y-0'}`}
+                    onWheel={(e) => e.stopPropagation()}
                 >
                     <div className="flex items-center gap-12 pointer-events-auto bg-[#131c18]/90 backdrop-blur-md px-12 py-4 rounded-xl border border-accent-gold/20 shadow-[0_15px_40px_rgba(0,0,0,0.8)]">
                         <div className="flex flex-col">
@@ -527,6 +604,7 @@ const App: React.FC = () => {
                     <aside 
                         className={`absolute top-36 right-12 bottom-12 w-[480px] z-30 pointer-events-auto transition-all duration-500 ease-in-out
                             ${isMapOverview ? 'opacity-0 translate-x-[110%] pointer-events-none' : 'opacity-100 translate-x-0'}`}
+                        onWheel={(e) => e.stopPropagation()}
                     >
                         <div className="h-full bg-[#131c18]/95 backdrop-blur-xl border border-border-soft/60 shadow-[0_0_80px_rgba(0,0,0,1)] rounded-xl overflow-hidden flex flex-col ring-1 ring-white/5">
                             <ClanDashboard state={state} onUpdateMember={handleUpdateMember} onAddMember={() => {}} onOpenBreakthrough={(id) => setBreakingMemberId(id)} onContributeItem={handleContributeItem} />
@@ -538,6 +616,7 @@ const App: React.FC = () => {
                     className={`absolute bottom-12 left-12 transition-all duration-500 z-30 flex flex-col overflow-hidden pointer-events-auto
                         ${isMapOverview ? 'opacity-0 translate-y-[120%] pointer-events-none' : 'opacity-100 translate-y-0'}
                         ${isConsoleCollapsed ? 'w-64 h-16' : 'w-[520px] h-[360px]'}`}
+                    onWheel={(e) => e.stopPropagation()}
                 >
                     <div className="h-full bg-[#131c18]/90 backdrop-blur-xl border border-border-soft shadow-[0_20px_60px_rgba(0,0,0,0.9)] rounded-xl overflow-hidden flex flex-col ring-1 ring-white/5">
                         <div 
@@ -566,7 +645,7 @@ const App: React.FC = () => {
                 </div>
 
                 {isManagementVisible && (
-                    <div className="fixed inset-0 z-[2000]">
+                    <div className="fixed inset-0 z-[2000]" onWheel={(e) => e.stopPropagation()}>
                         <ClanManagement 
                             state={state} 
                             onUpdateMember={handleUpdateMember} 

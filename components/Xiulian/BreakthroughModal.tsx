@@ -87,7 +87,7 @@ const BreakthroughModal: React.FC<Props> = ({ member, onClose, onAttempt }) => {
     if (!portalRoot) return null;
 
     return createPortal(
-  <div className="absolute inset-0 z-[9000] flex items-center justify-center bg-black/90 animate-fade-in pointer-events-auto">
+  <div className="absolute inset-0 z-[9000] flex items-center justify-center bg-black/90 animate-fade-in pointer-events-auto" onWheel={(e) => e.stopPropagation()}>
     <div className="
       relative w-[600px]
       bg-[#1b1512]

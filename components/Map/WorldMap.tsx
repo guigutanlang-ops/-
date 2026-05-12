@@ -5,6 +5,8 @@ import SettlementMarker from './SettlementMarker';
 import FactionAuraLayer from './FactionAuraLayer';
 import { IMAGE_ASSETS } from '../../assets/imageRegistry';
 
+import RegionInfoPanel from './RegionInfoPanel';
+
 interface Props {
     regions: Region[];
     members: ClanMember[];
@@ -12,6 +14,7 @@ interface Props {
     onSelectRegion: (region: Region | null) => void;
     onUpdateMember: (id: string, updates: Partial<ClanMember>) => void;
     onUpdateRegion: (id: string, updates: Partial<Region>) => void;
+    onAssignMission: (memberId: string, missionType: string) => void;
     currentRegionId: string;
     onOverviewChange?: (isOverview: boolean) => void;
 }
@@ -23,11 +26,13 @@ const VIEW_W = 1920;
 const VIEW_H = 1080;
 
 const ZOOM_STEPS = [0.6, 1, 1.5, 2.5]; 
-const INITIAL_ZOOM_IDX = 0; 
+const INITIAL_ZOOM_IDX = 1; 
 
 const WorldMap: React.FC<Props> = ({ 
     regions, 
+    members,
     onSelectRegion, 
+    onAssignMission,
     currentRegionId, 
     onOverviewChange 
 }) => {
@@ -37,6 +42,7 @@ const WorldMap: React.FC<Props> = ({
     // camera 存储的是摄像机中心在【原始世界坐标(3200x1800)】中的坐标
     const [camera, setCamera] = useState({ x: WORLD_W / 2, y: WORLD_H / 2 }); 
     const [isDragging, setIsDragging] = useState(false);
+    const [isPressed, setIsPressed] = useState(false);
     const lastMousePos = useRef({ x: 0, y: 0 });
     const lastPinchDistance = useRef<number | null>(null);
 
@@ -95,25 +101,36 @@ const WorldMap: React.FC<Props> = ({
     };
 
     const handleDragStart = (x: number, y: number) => {
-        setIsDragging(true);
+        setIsPressed(true);
         lastMousePos.current = { x, y };
     };
 
     const handleDragMove = (x: number, y: number) => {
-        if (!isDragging) return;
+        if (!isPressed) return;
+        
         const dx = x - lastMousePos.current.x;
         const dy = y - lastMousePos.current.y;
-        
-        setCamera(prev => {
-            const nextX = prev.x - dx / scale;
-            const nextY = prev.y - dy / scale;
-            return getClampedCamera(nextX, nextY, scale);
-        });
+
+        // Threshold for drag
+        if (!isDragging && (Math.abs(dx) > 2 || Math.abs(dy) > 2)) {
+            setIsDragging(true);
+        }
+
+        if (isDragging) {
+            setCamera(prev => {
+                const nextX = prev.x - dx / scale;
+                const nextY = prev.y - dy / scale;
+                return getClampedCamera(nextX, nextY, scale);
+            });
+        }
         
         lastMousePos.current = { x, y };
     };
 
-    const handleDragEnd = () => setIsDragging(false);
+    const handleDragEnd = () => {
+        setIsPressed(false);
+        setIsDragging(false);
+    };
 
     const handleMouseDown = (e: React.MouseEvent) => {
         if (e.button !== 0) return;
@@ -183,9 +200,12 @@ const WorldMap: React.FC<Props> = ({
         return { left: `${screenX}px`, top: `${screenY}px` };
     };
 
+    // Cursor logic: default on hover, grab on press, grabbing on drag
+    const cursorClass = isDragging ? 'cursor-grabbing' : (isPressed ? 'cursor-grab' : 'cursor-default');
+
     return (
         <div 
-            className={`w-full h-full relative overflow-hidden bg-[#020403] border-4 border-red-500/20 ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+            className={`w-full h-full relative overflow-hidden bg-[#020403] border-4 border-red-500/20 ${cursorClass}`}
             style={{ touchAction: 'none' }}
             onWheel={handleWheel}
             onMouseDown={handleMouseDown}
@@ -225,7 +245,7 @@ const WorldMap: React.FC<Props> = ({
             </div>
 
             {/* 2. UI层：据点 Marker */}
-            <div className="absolute inset-0 pointer-events-none">
+            <div className="absolute inset-0 pointer-events-none" onWheel={(e) => e.stopPropagation()}>
                 {regions.map(region => {
                     if (!region.isDiscovered) return null;
                     const pos = getUIPosition(region.x, region.y);
@@ -261,7 +281,7 @@ const WorldMap: React.FC<Props> = ({
             <div className="absolute inset-0 pointer-events-none shadow-[inset_0_0_120px_rgba(0,0,0,0.7)]" />
 
             {/* 控制台 */}
-            <div className="absolute bottom-8 right-12 flex items-center gap-4 bg-black/60 backdrop-blur-xl px-6 py-3 rounded-full border border-white/10 shadow-2xl">
+            <div className="absolute bottom-8 right-12 flex items-center gap-4 bg-black/60 backdrop-blur-xl px-6 py-3 rounded-full border border-white/10 shadow-2xl" onWheel={(e) => e.stopPropagation()}>
                 <button onClick={() => handleZoom('out')} className="w-8 h-8 flex items-center justify-center text-gray-500 hover:text-accent-gold transition-all text-2xl font-bold">－</button>
                 <div className="flex gap-2">
                     {ZOOM_STEPS.map((_, idx) => (
@@ -270,6 +290,45 @@ const WorldMap: React.FC<Props> = ({
                 </div>
                 <button onClick={() => handleZoom('in')} className="w-8 h-8 flex items-center justify-center text-gray-500 hover:text-accent-gold transition-all text-2xl font-bold">＋</button>
             </div>
+
+            {/* Selected Region Info Panel */}
+            {currentRegionId && currentRegionId !== 'li_clan_home' && (() => {
+                const region = regions.find(r => r.id === currentRegionId);
+                if (!region) return null;
+                const pos = getUIPosition(region.x, region.y);
+                const screenX = parseFloat(pos.left);
+                const screenY = parseFloat(pos.top);
+                
+                // Position logic: prefer right side, but use left if too close to right edge
+                const sideOffset = 20 * scale; 
+                const panelWidth = 400;
+                const panelMaxHeight = VIEW_H * 0.6; // Matches RegionInfoPanel max-h
+                
+                const isOnRight = screenX + sideOffset + panelWidth <= VIEW_W - 40;
+                
+                // Centering vertically at marker, then clamping
+                let topPos = screenY - panelMaxHeight / 2;
+                if (topPos + panelMaxHeight > VIEW_H - 40) {
+                    topPos = VIEW_H - panelMaxHeight - 40;
+                }
+                if (topPos < 40) topPos = 40;
+
+                const panelPosition = isOnRight 
+                    ? { left: `${screenX + sideOffset}px`, top: `${topPos}px` }
+                    : { right: `${VIEW_W - screenX + sideOffset}px`, top: `${topPos}px` };
+
+                return (
+                    <div onWheel={(e) => e.stopPropagation()}>
+                        <RegionInfoPanel
+                            region={region}
+                            members={members}
+                            position={panelPosition}
+                            onClose={() => onSelectRegion(null)}
+                            onAssignMission={onAssignMission}
+                        />
+                    </div>
+                );
+            })()}
         </div>
     );
 };

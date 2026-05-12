@@ -60,6 +60,7 @@ export interface GameEvent {
         newOwner?: FactionType;
         reputationChange?: Record<string, number>;
         items?: Record<number, number>; 
+        flagsSet?: Record<string, boolean | number>;
     };
 }
 

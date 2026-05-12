@@ -93,12 +93,27 @@ export class EventController {
             "revealed_beihan": "beihan_sect_main"
         };
 
-        if (choice.flagsSet) {
-            Object.keys(choice.flagsSet).forEach(flag => {
+        if (choice.flagsSet || impact.flagsSet) {
+            const combinedFlags = { ...(choice.flagsSet || {}), ...(impact.flagsSet || {}) };
+            Object.keys(combinedFlags).forEach(flag => {
                 const targetRegionId = regionUnlockMap[flag];
                 if (targetRegionId) {
                     newRegions = newRegions.map(r => 
                         r.id === targetRegionId ? { ...r, isDiscovered: true } : r
+                    );
+                }
+                
+                // Handle Mystic region destruction
+                if (flag.startsWith('destroyed_')) {
+                    const destroyedRegionId = flag.replace('destroyed_', '');
+                    newRegions = newRegions.filter(r => r.id !== destroyedRegionId);
+                }
+                
+                // Handle one-time exploration exhaustion (Deprecated in favor of specific category logic, but keeping for compatibility)
+                if (flag.startsWith('explored_')) {
+                    const exploredRegionId = flag.replace('explored_', '');
+                    newRegions = newRegions.map(r => 
+                        r.id === exploredRegionId ? { ...r, production: undefined } : r
                     );
                 }
             });
@@ -113,8 +128,14 @@ export class EventController {
         }
 
         // 处理掉落物品
-        const newInventory = { ...state.inventory };
+        let newInventory = { ...state.inventory };
+        let newMembers = [...state.members];
+
         if (impact.items) {
+            const isOccupyOrAttack = event.title.includes('占领') || event.title.includes('攻克') || event.title.includes('开疆拓土');
+            const targetMemberId = impact.memberId;
+            const targetMember = newMembers.find(m => m.id === targetMemberId);
+
             Object.entries(impact.items).forEach(([idStr, qty]) => {
                 const id = parseInt(idStr);
                 const detail = ALL_ITEM_DETAILS[id];
@@ -124,13 +145,42 @@ export class EventController {
                                    cat === 'mineral' ? 'minerals' :
                                    cat === 'pill' ? 'pills' :
                                    cat === 'weapon' ? 'weapons' :
-                                   cat === 'method' ? 'methods' : 'scrolls';
+                                   cat === 'method' ? 'methods' : 
+                                   cat === 'paper' ? 'paper' : 'scrolls';
                     
-                    if (catKey !== 'scrolls' || (catKey === 'scrolls' && typeof newInventory.scrolls !== 'number')) {
-                         const typedCat = catKey as keyof Inventory;
-                         if (typedCat !== 'paper') {
-                            newInventory[typedCat][id] = (newInventory[typedCat][id] || 0) + qty;
-                         }
+                    if (catKey === 'scrolls' && typeof newInventory.scrolls === 'number') return;
+                    if (catKey === 'paper') {
+                        // Special handling for number type
+                        if (isOccupyOrAttack || !targetMember) {
+                            newInventory.paper += qty;
+                        } else {
+                            newMembers = newMembers.map(m => m.id === targetMemberId ? { ...m, personalInventory: { ...m.personalInventory, paper: m.personalInventory.paper + qty } } : m);
+                        }
+                        return;
+                    }
+
+                    const typedCat = catKey as 'herbs' | 'minerals' | 'pills' | 'weapons' | 'methods' | 'scrolls';
+
+                    // Decision logic: Occupy/Attack -> Clan, Others -> Member
+                    if (isOccupyOrAttack || !targetMember) {
+                        // To Clan
+                        const clanCat = { ...(newInventory[typedCat] as Record<number, number>) };
+                        clanCat[id] = (clanCat[id] || 0) + qty;
+                        (newInventory as any)[typedCat] = clanCat;
+                    } else {
+                        // To Member
+                        newMembers = newMembers.map(m => {
+                            if (m.id !== targetMemberId) return m;
+                            const memberCat = { ...(m.personalInventory[typedCat] as Record<number, number>) };
+                            memberCat[id] = (memberCat[id] || 0) + qty;
+                            return {
+                                ...m,
+                                personalInventory: {
+                                    ...m.personalInventory,
+                                    [typedCat]: memberCat
+                                }
+                            };
+                        });
                     }
                 }
             });
@@ -145,6 +195,7 @@ export class EventController {
             regions: newRegions,
             factionReputation: newReputation,
             inventory: newInventory,
+            members: newMembers,
             logs: [
                 impact.log || `【${currentYear}载·因果】已作出决策：${event.title}`,
                 ...state.logs

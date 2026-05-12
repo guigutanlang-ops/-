@@ -13,7 +13,7 @@ const EventModal: React.FC<Props> = ({ event, onChoice }) => {
     if (!portalRoot) return null;
 
     return createPortal(
-        <div className="absolute inset-0 z-[9000] flex items-center justify-center bg-bg-main/95 p-12 animate-fade-in pointer-events-auto">
+        <div className="absolute inset-0 z-[9000] flex items-center justify-center bg-bg-main/95 p-12 animate-fade-in pointer-events-auto" onWheel={(e) => e.stopPropagation()}>
             <div className="w-[1000px] panel-ink p-10 rounded-sm border-t-4 border-t-accent-gold flex flex-col relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-8 text-6xl opacity-[0.03] pointer-events-none select-none font-serif font-black">
                     昊天

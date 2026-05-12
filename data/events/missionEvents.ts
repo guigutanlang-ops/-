@@ -108,6 +108,8 @@ const MISSION_STRATEGIES: Record<string, (member: ClanMember, region: Region, ye
                 merit: 15,
                 luck: luckRoll > 0.8 ? 5 : 1,
                 items: rewardedItems,
+                // Only destroy Mystic regions after exploration. Natural regions remain.
+                flagsSet: region.category === 'Mystic' ? { [`destroyed_${region.id}`]: true } : {},
                 log: `【${year}载】${member.name} 探索 ${region.name} 归来，带回了 ${itemNamesString}。`
             }
         };
