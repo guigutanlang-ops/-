@@ -1,7 +1,10 @@
 import React, { useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { GameState, ClanMember, Realm, CultivationMethod } from '../../types';
 import { REALM_ORDER, TASK_INFO } from '../../constants';
+import { getRequiredExp } from '../Xiulian/CultivationSystem';
 import { getRealmStyle, getRealmText, getTierColor, getRootGradeColor } from './Shared/utils';
+import CanvasSpiritBar from '../Shared/CanvasSpiritBar';
 import MemberDetailModal from './MemberDetailModal';
 import Tooltip from '../Shared/Tooltip';
 import { useTooltip } from '../Shared/useTooltip';
@@ -23,6 +26,7 @@ const ClanDashboard: React.FC<Props> = ({ state, onUpdateMember, onAddMember, on
     const [currentPage, setCurrentPage] = useState(0);
 
     const { tooltip, showTooltip, hideTooltip } = useTooltip();
+    const portalRoot = document.getElementById('portal-root');
 
     const selectedMember = useMemo(() => state.members.find(m => m.id === selectedMemberId), [state.members, selectedMemberId]);
 
@@ -43,8 +47,6 @@ const ClanDashboard: React.FC<Props> = ({ state, onUpdateMember, onAddMember, on
 
     return (
         <div className="h-full flex flex-col relative overflow-hidden">
-            <Tooltip state={tooltip} />
-
             <div className="p-8 border-b border-border-soft/40 bg-bg-main/40 shrink-0">
                 <div className="flex items-center justify-between mb-6">
                     <h2 className="font-serif text-2xl font-bold text-accent-gold/90 tracking-widest">族谱常青</h2>
@@ -74,12 +76,21 @@ const ClanDashboard: React.FC<Props> = ({ state, onUpdateMember, onAddMember, on
                                 {getRealmText(m.realm, m.subRealm)}
                             </span>
                         </div>
-                        <div className="flex justify-between items-center text-[11px] tracking-wider">
+                        <div className="flex justify-between items-center text-[11px] tracking-wider mb-2">
                             <span className={`font-bold ${getRootGradeColor(m.rootGrade)}`}>◈ {m.rootGrade}</span>
                             <span className={`font-medium px-2 py-0.5 rounded-sm bg-black/20 ${TASK_INFO[m.assignment]?.color || 'text-text-disabled'}`}>
                                 {TASK_INFO[m.assignment]?.label || '未知'}
                             </span>
                         </div>
+                        {m.realm !== Realm.Mortal && (
+                            <CanvasSpiritBar 
+                                progress={Math.min(1, m.spiritPower / getRequiredExp(REALM_ORDER.indexOf(m.realm), m.subRealm))}
+                                color="#3b82f6"
+                                glowColor="#60a5fa"
+                                height={4}
+                                className="rounded-full overflow-hidden border border-white/5 opacity-60"
+                            />
+                        )}
                         {selectedMemberId === m.id && (
                              <div className="mt-4 pt-3 border-t border-accent-jade/20 flex justify-end">
                                 <span className="text-[9px] text-accent-jade font-bold animate-pulse uppercase tracking-[0.2em]">镜照虚实 ◈ 详情</span>
@@ -98,11 +109,15 @@ const ClanDashboard: React.FC<Props> = ({ state, onUpdateMember, onAddMember, on
                     onOpenBreakthrough={onOpenBreakthrough || (() => {})}
                     onContributeItem={onContributeItem}
                     showTooltip={showTooltip} hideTooltip={hideTooltip}
+                    tooltip={tooltip}
                     renderPhysiqueTooltip={(physique) => renderPhysiqueContent(physique)}
                     renderItemTooltip={(id) => renderItemContent(id, selectedMember)}
                     renderMethodTooltip={(m) => renderItemContent(m.id, selectedMember)}
                 />
             )}
+
+            {/* Tooltip 渲染放在最后，确保其在 DOM 层级（Portal 中）位于最顶层 */}
+            {portalRoot && createPortal(<Tooltip state={tooltip} />, portalRoot)}
         </div>
     );
 };

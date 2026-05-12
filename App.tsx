@@ -11,6 +11,8 @@ import ClanManagement from './components/ClanManagement/ClanManagement';
 import BreakthroughModal from './components/Xiulian/BreakthroughModal';
 import EventModal from './components/events/EventModal';
 import RegionInfoPanel from './components/Map/RegionInfoPanel';
+import CanvasBackground from './components/Shared/CanvasBackground';
+import SpiritCursor from './components/Shared/SpiritCursor';
 
 const SEASON_NAMES = ['', '春', '夏', '秋', '冬'];
 
@@ -48,24 +50,64 @@ const App: React.FC = () => {
     const [isConsoleCollapsed, setIsConsoleCollapsed] = useState(false);
     const [breakingMemberId, setBreakingMemberId] = useState<string | null>(null);
     const [isMapOverview, setIsMapOverview] = useState(false);
+    const [isFullscreen, setIsFullscreen] = useState(false);
 
     const [scale, setScale] = useState(1);
+    const [isPortrait, setIsPortrait] = useState(false);
 
     const updateScale = useCallback(() => {
         const ww = window.innerWidth;
         const wh = window.innerHeight;
+        
+        // Robust orientation detection
+        let isPortraitMode = wh > ww;
+        
+        // Check window.orientation for older mobile browsers
+        if (typeof window.orientation !== 'undefined') {
+            isPortraitMode = Math.abs(Number(window.orientation)) !== 90;
+        }
+        
+        // Use screen orientation API if available
+        if (window.screen && window.screen.orientation && window.screen.orientation.type) {
+            isPortraitMode = window.screen.orientation.type.includes('portrait');
+        }
+
+        setIsPortrait(isPortraitMode);
+
         const targetW = 1920;
         const targetH = 1080;
         const scaleW = ww / targetW;
         const scaleH = wh / targetH;
         const newScale = Math.min(scaleW, scaleH);
-        setScale(Math.max(newScale, 0.1));
+        setScale(Math.max(newScale, 0.05));
     }, []);
 
-    useLayoutEffect(() => {
+    useEffect(() => {
         updateScale();
-        window.addEventListener('resize', updateScale);
-        return () => window.removeEventListener('resize', updateScale);
+        
+        const handleResize = () => {
+            updateScale();
+            // Second call for mobile browsers that update dimensions with a delay
+            setTimeout(updateScale, 100);
+            setTimeout(updateScale, 300);
+            setTimeout(updateScale, 600);
+        };
+
+        const portraitMedia = window.matchMedia("(orientation: portrait)");
+        
+        window.addEventListener('resize', handleResize);
+        window.addEventListener('orientationchange', handleResize);
+        if (portraitMedia.addEventListener) {
+            portraitMedia.addEventListener('change', handleResize);
+        }
+        
+        return () => {
+            window.removeEventListener('resize', handleResize);
+            window.removeEventListener('orientationchange', handleResize);
+            if (portraitMedia.removeEventListener) {
+                portraitMedia.removeEventListener('change', handleResize);
+            }
+        };
     }, [updateScale]);
 
     useEffect(() => {
@@ -93,6 +135,96 @@ const App: React.FC = () => {
                 ...prev,
                 members: updatedMembers,
                 logs: logs.length > 0 ? [...logs, ...prev.logs].slice(0, 30) : prev.logs
+            };
+        });
+    };
+
+    const handleContributeItem = (memberId: string, itemId: number, category: string, quantity: number) => {
+        setState(prev => {
+            const member = prev.members.find(m => m.id === memberId);
+            if (!member || quantity <= 0) return prev;
+            
+            const catKey = category as keyof Inventory;
+            if (catKey === 'paper') return prev; // Paper is handled differently
+
+            if (catKey === 'methods') {
+                const isCultivating = member.mainMethodId === itemId || 
+                                     member.movementMethodId === itemId || 
+                                     member.auxMethodIds.includes(itemId);
+                if (isCultivating) return prev;
+            }
+
+            const catItems = member.personalInventory[catKey] as Record<number, number>;
+            const currentQty = catItems[itemId] || 0;
+            if (currentQty < quantity) return prev;
+
+            // Immutable update for member inventory
+            const newCatItems = { ...catItems };
+            newCatItems[itemId] -= quantity;
+            if (newCatItems[itemId] <= 0) {
+                delete newCatItems[itemId];
+            }
+
+            const newMemberInventory = { 
+                ...member.personalInventory,
+                [catKey]: newCatItems
+            };
+
+            // Immutable update for clan inventory
+            const newClanInventory = { ...prev.inventory };
+            const clanCatItems = { ...(prev.inventory[catKey] as Record<number, number>) };
+            clanCatItems[itemId] = (clanCatItems[itemId] || 0) + quantity;
+            (newClanInventory as any)[catKey] = clanCatItems;
+
+            const itemDetail = ALL_ITEM_DETAILS[itemId] as any;
+
+            return {
+                ...prev,
+                inventory: newClanInventory,
+                members: prev.members.map(m => m.id === memberId ? { ...m, personalInventory: newMemberInventory } : m),
+                logs: [`【收回】${member.name} 的 ${itemDetail?.name || '物品'} x${quantity} 已被收回族库。`, ...prev.logs].slice(0, 30)
+            };
+        });
+    };
+
+    const handleAssignItem = (memberId: string, itemId: number, category: string, quantity: number) => {
+        setState(prev => {
+            const member = prev.members.find(m => m.id === memberId);
+            if (!member || quantity <= 0) return prev;
+
+            const catKey = category as keyof Inventory;
+            if (catKey === 'paper') return prev;
+
+            const clanCatItems = prev.inventory[catKey] as Record<number, number>;
+            const currentClanQty = clanCatItems[itemId] || 0;
+            if (currentClanQty < quantity) return prev;
+
+            // Update clan inventory
+            const newClanCatItems = { ...clanCatItems };
+            newClanCatItems[itemId] -= quantity;
+            if (newClanCatItems[itemId] <= 0) delete newClanCatItems[itemId];
+            
+            const newClanInventory = { 
+                ...prev.inventory,
+                [catKey]: newClanCatItems
+            };
+
+            // Update member inventory
+            const newMemberCatItems = { ...(member.personalInventory[catKey] as Record<number, number>) };
+            newMemberCatItems[itemId] = (newMemberCatItems[itemId] || 0) + quantity;
+            
+            const newMemberInventory = {
+                ...member.personalInventory,
+                [catKey]: newMemberCatItems
+            };
+
+            const itemDetail = ALL_ITEM_DETAILS[itemId] as any;
+
+            return {
+                ...prev,
+                inventory: newClanInventory,
+                members: prev.members.map(m => m.id === memberId ? { ...m, personalInventory: newMemberInventory } : m),
+                logs: [`【分配】家族将 ${itemDetail?.name || '物品'} x${quantity} 赐予 ${member.name}。`, ...prev.logs].slice(0, 30)
             };
         });
     };
@@ -147,6 +279,10 @@ const App: React.FC = () => {
             const isYearIncrement = currentSeason === 4;
             const proficiencyGains: Record<string, { type: string, amount: number }> = {};
             
+            // Deep copy of inventory to avoid mutation
+            const newInventoryState = { ...state.inventory };
+            const clonedCategories: Partial<Record<keyof Inventory, Record<number, number>>> = {};
+
             const updatedBuildings = state.buildings.map(b => {
                 if (!b.isFinished) {
                     const rem = b.turnsRemaining - 1;
@@ -162,8 +298,16 @@ const App: React.FC = () => {
                         const recipe = [...RECIPES.Alchemy, ...RECIPES.Smithing].find(r => r.id === b.activeProduction!.recipeId);
                         if (recipe) {
                             const productDetail = ALL_ITEM_DETAILS[recipe.productId] as any;
-                            const catKey = productDetail.category === 'pill' ? 'pills' : 'weapons';
-                            finalInventory[catKey][recipe.productId] = (finalInventory[catKey][recipe.productId] || 0) + 1;
+                            const catKey = (productDetail.category === 'pill' ? 'pills' : 'weapons') as keyof Inventory;
+                            
+                            // Immutable update for product
+                            if (!clonedCategories[catKey]) {
+                                clonedCategories[catKey] = { ...(newInventoryState[catKey] as Record<number, number>) };
+                                (newInventoryState as any)[catKey] = clonedCategories[catKey];
+                            }
+                            const catObj = clonedCategories[catKey]!;
+                            catObj[recipe.productId] = (catObj[recipe.productId] || 0) + 1;
+
                             const baseGain = recipe.grade === 0 ? 2 : recipe.grade * 10;
                             const totalGain = baseGain * (recipe.turns || 1);
                             const artisanType = b.activeProduction.type === 'Alchemy' ? '炼丹' : '炼器';
@@ -216,7 +360,7 @@ const App: React.FC = () => {
                 return updatedMember;
             });
 
-            if (Math.random() > 0.6) newEvents.push(EventController.generateNextEvent({ ...state, members: updatedMembers, regions: updatedRegions, buildings: updatedBuildings, inventory: finalInventory }));
+            if (Math.random() > 0.6) newEvents.push(EventController.generateNextEvent({ ...state, members: updatedMembers, regions: updatedRegions, buildings: updatedBuildings, inventory: newInventoryState }));
             
             setState(prev => ({
                 ...prev,
@@ -227,7 +371,7 @@ const App: React.FC = () => {
                 buildings: updatedBuildings,
                 spiritStones: prev.spiritStones + 50,
                 merit: prev.merit + 2,
-                inventory: finalInventory,
+                inventory: newInventoryState,
                 logs: [...turnLogs, ...prev.logs].slice(0, 40)
             }));
             if (newEvents.length > 0) setPendingEvents(newEvents);
@@ -258,14 +402,69 @@ const App: React.FC = () => {
         setBreakingMemberId(null);
     };
 
+    const toggleFullscreen = async () => {
+        try {
+            if (!document.fullscreenElement) {
+                await document.documentElement.requestFullscreen();
+                setIsFullscreen(true);
+                // Attempt to lock orientation if supported (requires fullscreen)
+                if (window.screen && window.screen.orientation && (window.screen.orientation as any).lock) {
+                    await (window.screen.orientation as any).lock('landscape').catch(() => {});
+                }
+            } else {
+                if (document.exitFullscreen) {
+                    await document.exitFullscreen();
+                    setIsFullscreen(false);
+                }
+            }
+            updateScale();
+        } catch (e) {
+            console.error("Fullscreen error:", e);
+        }
+    };
+
+    const requestSensorPermission = async () => {
+        if (typeof DeviceOrientationEvent !== 'undefined' && 
+            typeof (DeviceOrientationEvent as any).requestPermission === 'function') {
+            try {
+                const permissionState = await (DeviceOrientationEvent as any).requestPermission();
+                if (permissionState === 'granted') {
+                    window.addEventListener('deviceorientation', () => {
+                        // Just listening to ensure it works
+                        updateScale();
+                    }, { once: true });
+                }
+            } catch (e) {
+                console.error("Permission request failed", e);
+            }
+        }
+    };
+
+    useEffect(() => {
+        const handleFsChange = () => setIsFullscreen(!!document.fullscreenElement);
+        document.addEventListener('fullscreenchange', handleFsChange);
+        return () => document.removeEventListener('fullscreenchange', handleFsChange);
+    }, []);
+
     const selectedRegion = state.regions.find(r => r.id === state.currentRegionId);
     const maxClanRealmIdx = state.members
         .filter(m => m.family === '望月李氏')
         .reduce((max, m) => Math.max(max, REALM_ORDER.indexOf(m.realm)), 0);
 
     return (
-        <div className="game-canvas" style={{ transform: `scale(${scale})` }}>
-            <div className="h-full w-full relative bg-[#0a0f0d] text-text-main overflow-hidden select-none font-sans">
+        <>
+            <SpiritCursor />
+            <CanvasBackground />
+            <div 
+                className="game-canvas absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2" 
+                style={{ 
+                    width: '1920px', 
+                    height: '1080px', 
+                    transformOrigin: 'center center',
+                    transform: `translate(-50%, -50%) scale(${scale})` 
+                }}
+            >
+                <div className="h-full w-full relative bg-[#0a0f0d] text-text-main overflow-hidden select-none font-sans">
                 
                 <div className="absolute inset-0 z-0">
                     <WorldMap 
@@ -315,6 +514,9 @@ const App: React.FC = () => {
                     </div>
                     
                     <div className="flex items-center gap-6 pointer-events-auto bg-[#131c18]/90 backdrop-blur-md px-8 py-5 rounded-xl border border-white/5 shadow-[0_15px_40px_rgba(0,0,0,0.8)]">
+                        <button onClick={toggleFullscreen} className="w-12 h-12 flex items-center justify-center bg-bg-main/60 border border-border-soft text-text-muted rounded-full hover:border-accent-gold hover:text-accent-gold transition-all text-xl shadow-inner">
+                            {isFullscreen ? '📺' : '📱'}
+                        </button>
                         <button onClick={() => setIsManagementVisible(true)} className="px-8 py-3 bg-bg-main/60 border border-border-soft text-text-muted rounded-sm font-bold hover:border-accent-jade hover:text-accent-jade transition-all flex items-center gap-2 text-base shadow-inner">🏛️ 家族管理</button>
                         <button onClick={() => setIsDashboardVisible(!isDashboardVisible)} className={`px-8 py-3 rounded-sm border transition-all font-bold flex items-center gap-2 text-base ${isDashboardVisible ? 'bg-accent-jade/20 border-accent-jade text-accent-jade' : 'bg-bg-main/60 border-border-soft text-text-disabled'}`}>📜 族谱常青</button>
                         <button onClick={handleNextTurn} disabled={isProcessing || pendingEvents.length > 0} className="bg-accent-jade hover:brightness-110 disabled:opacity-30 text-bg-main px-12 py-3 rounded-sm font-black transition-all shadow-[0_0_30px_rgba(77,124,107,0.5)] text-lg tracking-widest ml-4">{isProcessing ? '推演因果' : '岁时轮转'}</button>
@@ -327,7 +529,7 @@ const App: React.FC = () => {
                             ${isMapOverview ? 'opacity-0 translate-x-[110%] pointer-events-none' : 'opacity-100 translate-x-0'}`}
                     >
                         <div className="h-full bg-[#131c18]/95 backdrop-blur-xl border border-border-soft/60 shadow-[0_0_80px_rgba(0,0,0,1)] rounded-xl overflow-hidden flex flex-col ring-1 ring-white/5">
-                            <ClanDashboard state={state} onUpdateMember={handleUpdateMember} onAddMember={() => {}} onOpenBreakthrough={(id) => setBreakingMemberId(id)} onContributeItem={() => {}} />
+                            <ClanDashboard state={state} onUpdateMember={handleUpdateMember} onAddMember={() => {}} onOpenBreakthrough={(id) => setBreakingMemberId(id)} onContributeItem={handleContributeItem} />
                         </div>
                     </aside>
                 )}
@@ -364,12 +566,22 @@ const App: React.FC = () => {
                 </div>
 
                 {isManagementVisible && (
-                    <div className="fixed inset-0 z-[500]">
+                    <div className="fixed inset-0 z-[2000]">
                         <ClanManagement 
                             state={state} 
                             onUpdateMember={handleUpdateMember} 
                             onUpdateBuilding={(id, u) => setState(p => ({ ...p, buildings: p.buildings.map(b => b.id === id ? { ...b, ...u } : b) }))} 
-                            onUpdateInventory={(u) => setState(p => ({ ...p, inventory: { ...p.inventory, ...u } }))}
+                            onUpdateInventory={(u) => setState(p => {
+                                const newInv = { ...p.inventory };
+                                (Object.keys(u) as (keyof Inventory)[]).forEach(k => {
+                                    if (k === 'paper') {
+                                        (newInv as any)[k] = u[k];
+                                    } else {
+                                        (newInv as any)[k] = { ...(p.inventory[k] as object), ...(u[k] as object) };
+                                    }
+                                });
+                                return { ...p, inventory: newInv };
+                            })}
                             onAddBuilding={(type) => {
                                 const id = `building_${Date.now()}`;
                                 const cost = BUILDING_TYPES[type].baseCost;
@@ -379,7 +591,16 @@ const App: React.FC = () => {
                                 };
                                 setState(p => ({ ...p, spiritStones: p.spiritStones - cost, buildings: [...p.buildings, newBuilding] }));
                             }} 
-                            onCancelBuilding={() => {}}
+                            onCancelBuilding={(id) => {
+                                const building = state.buildings.find(b => b.id === id);
+                                if (!building) return;
+                                const cost = BUILDING_TYPES[building.type].baseCost;
+                                setState(p => ({ 
+                                    ...p, 
+                                    spiritStones: p.spiritStones + cost, 
+                                    buildings: p.buildings.filter(b => b.id !== id) 
+                                }));
+                            }}
                             onAssignBuilding={(bid, mid, sidx) => {
                                 setState(prev => ({
                                     ...prev,
@@ -394,7 +615,7 @@ const App: React.FC = () => {
                                     })
                                 }));
                             }} 
-                            onAssignItem={() => {}}
+                            onAssignItem={handleAssignItem}
                             onClose={() => setIsManagementVisible(false)} 
                         />
                     </div>
@@ -409,9 +630,48 @@ const App: React.FC = () => {
                         onAttempt={(success, pillId) => handleBreakthroughAttempt(breakingMemberId, success, pillId)}
                     />
                 )}
+                <div id="portal-root"></div>
             </div>
         </div>
-    );
+            
+        {/* Mobile Orientation Warning */}
+        {isPortrait && (
+                <div className="fixed inset-0 z-[10000] bg-[#0E1512] flex flex-col items-center justify-center p-8 text-center ring-4 ring-inset ring-accent-gold/20">
+                    <div className="w-24 h-24 mb-8 border-4 border-accent-gold/40 rounded-2xl flex items-center justify-center animate-bounce shadow-[0_0_50px_rgba(201,160,99,0.3)]">
+                        <span className="text-5xl">🔄</span>
+                    </div>
+                    <h2 className="text-3xl font-serif text-accent-gold mb-4 tracking-[0.4em] uppercase">请旋转屏幕</h2>
+                    <p className="text-text-muted leading-relaxed mb-10 max-w-xs">
+                        本游戏专为横屏体道设计，<br />
+                        请开启“自动旋转”并横向握持。
+                    </p>
+                    
+                    <div className="flex flex-col gap-4 w-full max-w-[280px]">
+                        <button 
+                            onClick={() => {
+                                toggleFullscreen();
+                                requestSensorPermission();
+                            }}
+                            className="w-full py-4 bg-accent-gold text-bg-main font-black rounded-lg shadow-xl hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-2"
+                        >
+                            <span>📺</span> 尝试强制横屏
+                        </button>
+                        
+                        <button 
+                            onClick={() => setIsPortrait(false)}
+                            className="w-full py-3 bg-white/5 border border-white/10 text-text-disabled rounded-lg text-sm hover:bg-white/10 transition-all"
+                        >
+                            忽略警告 (直接进入)
+                        </button>
+                    </div>
+
+                    <div className="mt-12 text-[10px] text-accent-gold/30 tracking-[0.2em] font-mono uppercase">
+                        Hantian Era · Detection System
+                    </div>
+                </div>
+            )}
+        </>
+  );
 };
 
 export default App;

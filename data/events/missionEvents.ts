@@ -22,7 +22,7 @@ const MISSION_STRATEGIES: Record<string, (member: ClanMember, region: Region, ye
                 regionId: region.id,
                 reputationChange: { [region.owner]: 15 },
                 merit: 5,
-                items: { 1201: 2 }, // 奖励 2 颗补气丸
+                items: { 30101: 2 }, // 奖励 2 颗补气丸
                 log: `【${year}载】${member.name} 完成外交使命，带回补气丸作为回礼。`
             }
         };
@@ -42,7 +42,7 @@ const MISSION_STRATEGIES: Record<string, (member: ClanMember, region: Region, ye
                 memberId: member.id,
                 regionId: region.id,
                 spiritStones: 800,
-                items: { 1401: 5 }, // 奖励 5 份赤铜精
+                items: { 50101: 5 }, // 奖励 5 份赤铜精
                 log: `【${year}载】商道大开，家族获灵石八百，赤铜精五份。`
             }
         };
@@ -75,7 +75,7 @@ const MISSION_STRATEGIES: Record<string, (member: ClanMember, region: Region, ye
             }
         } else {
             // 兜底：如果没定义产出，则给一些基础灵草
-            rewardedItems = luckRoll > 0.7 ? { 1301: 3 } : { 1300: 5 };
+            rewardedItems = luckRoll > 0.7 ? { 40101: 3 } : { 40100: 5 };
         }
 
         const itemNameDesc = Object.keys(rewardedItems).length > 0 ? "了一些天材地宝" : "了一些寻常草药";
@@ -143,7 +143,7 @@ function generateCombatOutcome(member: ClanMember, region: Region, year: number,
 
     if (isWin) {
         // 构建战利品描述
-        const winItems = region.production?.items || { 1402: 3, 1202: 5 };
+        const winItems = region.production?.items || { 50200: 3, 30102: 5 };
         const winItemsString = Object.entries(winItems)
             .map(([id, qty]) => {
                 const detail = (ALL_ITEM_DETAILS as any)[id];

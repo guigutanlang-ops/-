@@ -109,22 +109,22 @@ const CultivationTab: React.FC<Props> = ({ member, state, onToggleMethod, showMe
     return (
         <div className="h-full flex flex-col min-h-0 overflow-hidden animate-fade-in" onClick={() => { setFocusedSlot(null); setSelectedLibraryMethodId(null); }}>
             {/* 上部：已装备槽位 */}
-            <div className="shrink-0 py-6 bg-black/20 rounded-xl border border-white/5 shadow-2xl overflow-hidden mb-4" onClick={(e) => e.stopPropagation()}>
+            <div className="shrink-0 py-6 bg-black/40 rounded-xl border border-white/5 shadow-2xl overflow-hidden mb-4" onClick={(e) => e.stopPropagation()}>
                 <div className="relative grid grid-cols-3 gap-x-12 gap-y-4 z-10 items-center max-w-lg mx-auto">
                     <div className="flex flex-col gap-4">
-                        <SlotItem methodId={member.auxMethodIds[0] || null} type="Combat" label="辅修I" isFocused={focusedSlot === 'aux0'} onClick={() => handleEquippedSlotClick('aux0')} onMouseEnter={(e) => member.auxMethodIds[0] && showMethodTooltip(e, CULTIVATION_METHODS.find(m => m.id === member.auxMethodIds[0])!)} onMouseLeave={hideTooltip} onUnequip={() => onToggleMethod(member.auxMethodIds[0], 'Combat')} />
-                        <SlotItem methodId={member.auxMethodIds[1] || null} type="Combat" label="辅修II" isFocused={focusedSlot === 'aux1'} onClick={() => handleEquippedSlotClick('aux1')} onMouseEnter={(e) => member.auxMethodIds[1] && showMethodTooltip(e, CULTIVATION_METHODS.find(m => m.id === member.auxMethodIds[1])!)} onMouseLeave={hideTooltip} onUnequip={() => onToggleMethod(member.auxMethodIds[1], 'Combat')} />
+                        <SlotItem methodId={member.auxMethodIds[0] || null} type="Combat" label="术法I" isFocused={focusedSlot === 'aux0'} onClick={() => handleEquippedSlotClick('aux0')} onMouseEnter={(e) => member.auxMethodIds[0] && showMethodTooltip(e, CULTIVATION_METHODS.find(m => m.id === member.auxMethodIds[0])!)} onMouseLeave={hideTooltip} onUnequip={() => onToggleMethod(member.auxMethodIds[0], 'Combat')} />
+                        <SlotItem methodId={member.auxMethodIds[1] || null} type="Combat" label="术法II" isFocused={focusedSlot === 'aux1'} onClick={() => handleEquippedSlotClick('aux1')} onMouseEnter={(e) => member.auxMethodIds[1] && showMethodTooltip(e, CULTIVATION_METHODS.find(m => m.id === member.auxMethodIds[1])!)} onMouseLeave={hideTooltip} onUnequip={() => onToggleMethod(member.auxMethodIds[1], 'Combat')} />
                     </div>
                     <div className="flex flex-col items-center gap-4">
                         <SlotItem methodId={member.movementMethodId} type="Movement" label="遁术" isFocused={focusedSlot === 'mov'} onClick={() => handleEquippedSlotClick('mov')} onMouseEnter={(e) => member.movementMethodId && showMethodTooltip(e, CULTIVATION_METHODS.find(m => m.id === member.movementMethodId)!)} onMouseLeave={hideTooltip} onUnequip={() => onToggleMethod(member.movementMethodId!, 'Movement')} />
-                        <div className="w-16 h-10 rounded-full bg-yellow-900/5 border border-yellow-500/10 flex items-center justify-center relative">
-                            <span className="text-xl opacity-20">🧘</span>
+                        <div className="w-16 h-10 rounded-full bg-yellow-900/10 border border-yellow-500/20 flex items-center justify-center relative shadow-[0_0_15px_rgba(201,160,99,0.1)]">
+                            <span className="text-xl opacity-40">🧘</span>
                         </div>
                         <SlotItem methodId={member.mainMethodId} type="Cultivation" label="主修" isFocused={focusedSlot === 'main'} onClick={() => handleEquippedSlotClick('main')} onMouseEnter={(e) => member.mainMethodId && showMethodTooltip(e, CULTIVATION_METHODS.find(m => m.id === member.mainMethodId)!)} onMouseLeave={hideTooltip} onUnequip={() => onToggleMethod(member.mainMethodId!, 'Cultivation')} />
                     </div>
                     <div className="flex flex-col gap-4">
-                        <SlotItem methodId={member.auxMethodIds[2] || null} type="Combat" label="辅修III" isFocused={focusedSlot === 'aux2'} onClick={() => handleEquippedSlotClick('aux2')} onMouseEnter={(e) => member.auxMethodIds[2] && showMethodTooltip(e, CULTIVATION_METHODS.find(m => m.id === member.auxMethodIds[2])!)} onMouseLeave={hideTooltip} onUnequip={() => onToggleMethod(member.auxMethodIds[2], 'Combat')} />
-                        <SlotItem methodId={member.auxMethodIds[3] || null} type="Combat" label="辅修IV" isFocused={focusedSlot === 'aux3'} onClick={() => handleEquippedSlotClick('aux3')} onMouseEnter={(e) => member.auxMethodIds[3] && showMethodTooltip(e, CULTIVATION_METHODS.find(m => m.id === member.auxMethodIds[3])!)} onMouseLeave={hideTooltip} onUnequip={() => onToggleMethod(member.auxMethodIds[3], 'Combat')} />
+                        <SlotItem methodId={member.auxMethodIds[2] || null} type="Combat" label="术法III" isFocused={focusedSlot === 'aux2'} onClick={() => handleEquippedSlotClick('aux2')} onMouseEnter={(e) => member.auxMethodIds[2] && showMethodTooltip(e, CULTIVATION_METHODS.find(m => m.id === member.auxMethodIds[2])!)} onMouseLeave={hideTooltip} onUnequip={() => onToggleMethod(member.auxMethodIds[2], 'Combat')} />
+                        <SlotItem methodId={member.auxMethodIds[3] || null} type="Combat" label="术法IV" isFocused={focusedSlot === 'aux3'} onClick={() => handleEquippedSlotClick('aux3')} onMouseEnter={(e) => member.auxMethodIds[3] && showMethodTooltip(e, CULTIVATION_METHODS.find(m => m.id === member.auxMethodIds[3])!)} onMouseLeave={hideTooltip} onUnequip={() => onToggleMethod(member.auxMethodIds[3], 'Combat')} />
                     </div>
                 </div>
             </div>
@@ -143,7 +143,7 @@ const CultivationTab: React.FC<Props> = ({ member, state, onToggleMethod, showMe
                             {[
                                 { id: 'All', label: '全部' },
                                 { id: 'Cultivation', label: '修行' },
-                                { id: 'Combat', label: '战斗' },
+                                { id: 'Combat', label: '术法' },
                                 { id: 'Movement', label: '遁术' }
                             ].map(t => (
                                 <button 
@@ -175,7 +175,7 @@ const CultivationTab: React.FC<Props> = ({ member, state, onToggleMethod, showMe
 
                 {/* 滚动网格区域 */}
                 <div className="flex-1 overflow-y-auto custom-scrollbar">
-                    <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-x-3 gap-y-6 pb-4 px-1 items-start">
+                    <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-5 gap-x-3 gap-y-8 pt-[1px] pb-4 px-1 items-start">
                         {libraryMethods.map(m => {
                             const isEquipped = member.mainMethodId === m.id || member.movementMethodId === m.id || member.auxMethodIds.includes(m.id);
                             const { met, missing } = checkMethodRequirements(m);
@@ -192,8 +192,8 @@ const CultivationTab: React.FC<Props> = ({ member, state, onToggleMethod, showMe
                                         onMouseLeave={hideTooltip} 
                                         className={`p-3 rounded border transition-all cursor-pointer relative flex flex-col items-center justify-between aspect-[3/4] shadow-md group 
                                             ${style.bg} ${style.border}
-                                            ${isSelected ? 'ring-2 ring-yellow-400 scale-105 z-10 shadow-[0_0_20px_rgba(234,179,8,0.3)]' : ''}
-                                            ${isEquipped ? 'grayscale-[0.8] brightness-50' : (!met ? 'grayscale-[0.9] brightness-[0.3]' : 'hover:scale-[1.02] hover:brightness-110')}
+                                            ${isSelected ? 'ring-2 ring-yellow-400 z-10 shadow-[0_0_20px_rgba(234,179,8,0.3)]' : ''}
+                                            ${isEquipped ? 'grayscale-[0.8] brightness-50' : (!met ? 'grayscale-[0.9] brightness-[0.3]' : 'hover:brightness-110')}
                                         `}
                                     >
                                         <div className="text-2xl mt-1 opacity-80 drop-shadow-md">📖</div>
@@ -202,16 +202,15 @@ const CultivationTab: React.FC<Props> = ({ member, state, onToggleMethod, showMe
                                         </div>
                                         
                                         {isEquipped && (
-                                            <div className="absolute inset-0 bg-black/60 flex items-center justify-center p-2 backdrop-blur-[1px]">
-                                                <div className="bg-black/90 text-gray-400 text-[10px] px-3 py-1 rounded-sm border border-gray-700 rotate-[-12deg] font-bold shadow-2xl">已修习</div>
+                                            <div className="absolute inset-0 bg-black/60 flex items-center justify-center p-2 backdrop-blur-[1.5px] z-20 rounded">
+                                                <div className="bg-black/90 text-gray-400 text-[11px] px-3 py-1 rounded-sm border border-gray-600/50 rotate-[-15deg] font-bold shadow-[0_0_15px_rgba(0,0,0,0.8)] tracking-widest ring-1 ring-white/5">已修习</div>
                                             </div>
                                         )}
                                         
                                         {!isEquipped && !met && (
-                                            <div className="absolute inset-0 flex flex-col items-center justify-center p-2 text-center">
-                                                <span className="text-gray-500 text-[9px] font-bold mb-1">未达要求</span>
-                                                <div className="bg-red-950/40 border border-red-900/40 rounded-sm px-1 py-0.5">
-                                                    <span className="text-red-700 text-[8px] leading-tight font-bold">{missing[0] || '条件不足'}</span>
+                                            <div className="absolute inset-0 flex flex-col items-center justify-center p-4 text-center z-20 pointer-events-none">
+                                                <div className="bg-black/40 backdrop-blur-[1px] px-2 py-1 rounded border border-white/5 shadow-xl">
+                                                    <span className="text-gray-400/80 text-[12px] font-bold tracking-tight drop-shadow-md">{missing[0] || '条件不足'}</span>
                                                 </div>
                                             </div>
                                         )}
@@ -227,6 +226,15 @@ const CultivationTab: React.FC<Props> = ({ member, state, onToggleMethod, showMe
                                             disabled={!met}
                                         >
                                             修炼
+                                        </button>
+                                    )}
+
+                                    {isSelected && isEquipped && (
+                                        <button 
+                                            onClick={(e) => { e.stopPropagation(); onToggleMethod(m.id, m.type); setSelectedLibraryMethodId(null); }}
+                                            className="mt-[7px] w-full py-1.5 rounded border font-bold text-[10px] animate-fade-in transition-all flex items-center justify-center gap-1 shadow-lg bg-red-900/40 border-red-500/30 text-red-400 hover:bg-red-800"
+                                        >
+                                            卸下
                                         </button>
                                     )}
                                 </div>

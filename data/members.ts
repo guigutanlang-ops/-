@@ -27,9 +27,9 @@ export const INITIAL_MEMBERS_DATA: Omit<ClanMember, 'rootGrade'>[] = [
         proficiencies: { 炼丹: 0, 炼器: 0, 制符: 0, 阵法: 0 },
         combatProficiencies: { 剑法: 10, 拳法: 50, 枪法: 0, 刀法: 0, 弓箭: 0 },
         equippedItems: { ...emptyEquipment()},
-        personalInventory: { ...emptyInventory(), pills: { 1201: 1 } },
+        personalInventory: { ...emptyInventory(), pills: { 30101: 1 } },
         tier: '凡人', element: Element.Earth, status: 'healthy', loyalty: 100, assignment: 'Idle', legacyPoints: 100,
-        mainMethodId: 0, movementMethodId: null, auxMethodIds: [], cultivationProgress: 0, developmentPlan: 'Balanced', divineAbilities: [], 
+        mainMethodId: 0, movementMethodId: null, auxMethodIds: [], spiritPower: 0, developmentPlan: 'Balanced', divineAbilities: [], 
         family: '望月李氏', sect: '无', position: '家主',
         fatherId: null, motherId: null
     },
@@ -41,9 +41,9 @@ export const INITIAL_MEMBERS_DATA: Omit<ClanMember, 'rootGrade'>[] = [
         proficiencies: { 炼丹: 0, 炼器: 0, 制符: 0, 阵法: 0 },
         combatProficiencies: { 剑法: 120, 拳法: 80, 枪法: 0, 刀法: 40, 弓箭: 0 },
         equippedItems: emptyEquipment(),
-        personalInventory:{ ...emptyInventory(), pills: { 1200: 100,1202: 100, 1203:100} },
+        personalInventory:{ ...emptyInventory(), pills: { 30100: 100, 30102: 100, 30300: 100} },
         tier: '平庸', element: Element.Earth, status: 'healthy', loyalty: 100, assignment: 'Idle', legacyPoints: 50,
-        mainMethodId: 0, movementMethodId: null, auxMethodIds: [], cultivationProgress: 10, developmentPlan: 'Balanced', divineAbilities: [], 
+        mainMethodId: 0, movementMethodId: null, auxMethodIds: [], spiritPower: 10, developmentPlan: 'Balanced', divineAbilities: [], 
         family: '望月李氏', sect: '无', position: '弟子',
         fatherId: 'mutian'
     },
@@ -54,10 +54,10 @@ export const INITIAL_MEMBERS_DATA: Omit<ClanMember, 'rootGrade'>[] = [
         talents: { 战斗天赋: { 剑法: 8, 拳法: 2, 枪法: 1, 刀法: 2, 弓箭: 1 }, 百艺天赋: { 炼丹: 1, 炼器: 4, 制符: 1, 阵法: 3 } },
         proficiencies: { 炼丹: 0, 炼器: 0, 制符: 0, 阵法: 0 },
         combatProficiencies: { 剑法: 850, 拳法: 100, 枪法: 20, 刀法: 50, 弓箭: 0 },
-        equippedItems: { ...emptyEquipment(), weapon: 1100 },
-        personalInventory: { ...emptyInventory(), pills: { 1200: 100,1204:50, 1202:100} },
+        equippedItems: { ...emptyEquipment(), weapon: 20100 },
+        personalInventory: { ...emptyInventory(), pills: { 30100: 100, 30400: 50, 30102: 100} },
         tier: '超凡', element: Element.Gold, status: 'healthy', loyalty: 100, assignment: 'Idle', legacyPoints: 200,
-        mainMethodId: 0, movementMethodId: null, auxMethodIds: [], cultivationProgress: 45, developmentPlan: 'Combat', divineAbilities: [], 
+        mainMethodId: 0, movementMethodId: null, auxMethodIds: [], spiritPower: 45, developmentPlan: 'Combat', divineAbilities: [], 
         family: '望月李氏', sect: '无', position: '弟子',
         fatherId: 'mutian'
     },
@@ -71,7 +71,7 @@ export const INITIAL_MEMBERS_DATA: Omit<ClanMember, 'rootGrade'>[] = [
         equippedItems: emptyEquipment(),
         personalInventory: emptyInventory(),
         tier: '普通', element: Element.Wood, status: 'healthy', loyalty: 100, assignment: 'Idle', legacyPoints: 100,
-        mainMethodId: 0, movementMethodId: null, auxMethodIds: [], cultivationProgress: 20, developmentPlan: 'Balanced', divineAbilities: [], 
+        mainMethodId: 0, movementMethodId: null, auxMethodIds: [], spiritPower: 20, developmentPlan: 'Balanced', divineAbilities: [], 
         family: '望月李氏', sect: '无', position: '弟子',
         fatherId: 'mutian'
     },
@@ -82,10 +82,10 @@ export const INITIAL_MEMBERS_DATA: Omit<ClanMember, 'rootGrade'>[] = [
         talents: { 战斗天赋: { 剑法: 10, 拳法: 1, 枪法: 1, 刀法: 1, 弓箭: 1 }, 百艺天赋: { 炼丹: 1, 炼器: 2, 制符: 2, 阵法: 3 } },
         proficiencies: { 炼丹: 0, 炼器: 0, 制符: 0, 阵法: 0 },
         combatProficiencies: { 剑法: 1200, 拳法: 10, 枪法: 0, 刀法: 0, 弓箭: 0 },
-        equippedItems: { ...emptyEquipment(), weapon: 1107 },
-        personalInventory: { ...emptyInventory(), weapons:{},minerals: { 1402: 1 }, methods: { 1001: 1, 1002:1, 1004:1, 1005:1} ,pills: { 1202: 100, 1203:100, 1204:50}, scrolls:{1500:1},},
+        equippedItems: { ...emptyEquipment(), weapon: 20401 },
+        personalInventory: { ...emptyInventory(), weapons:{},minerals: { 50200: 1 }, methods: { 10200: 1, 10101: 1, 10300: 1, 10400: 1} ,pills: { 30102: 100, 30300: 100, 30400: 50}, scrolls: { 60000: 1 },},
         tier: '绝世天骄', element: Element.Water, status: 'healthy', loyalty: 100, assignment: 'Idle', legacyPoints: 1000,
-        mainMethodId: 0, movementMethodId: null, auxMethodIds: [], cultivationProgress: 80, developmentPlan: 'Combat', divineAbilities: [], 
+        mainMethodId: 0, movementMethodId: null, auxMethodIds: [], spiritPower: 80, developmentPlan: 'Combat', divineAbilities: [], 
         family: '望月李氏', sect: '无', position: '弟子',
         fatherId: 'mutian'
     },
@@ -99,7 +99,7 @@ export const INITIAL_MEMBERS_DATA: Omit<ClanMember, 'rootGrade'>[] = [
         equippedItems: emptyEquipment(),
         personalInventory: emptyInventory(),
         tier: '天才', element: Element.Gold, status: 'healthy', loyalty: 100, assignment: 'Idle', legacyPoints: 200,
-        mainMethodId: 0, movementMethodId: null, auxMethodIds: [], cultivationProgress: 35, developmentPlan: 'Combat', divineAbilities: [], 
+        mainMethodId: 0, movementMethodId: null, auxMethodIds: [], spiritPower: 35, developmentPlan: 'Combat', divineAbilities: [], 
         family: '望月李氏', sect: '天一剑宗', position: '弟子',
         fatherId: 'mutian'
     },
@@ -114,7 +114,7 @@ export const INITIAL_MEMBERS_DATA: Omit<ClanMember, 'rootGrade'>[] = [
         combatProficiencies: { 剑法: 0, 拳法: 200, 枪法: 0, 刀法: 650, 弓箭: 0 },
         equippedItems: emptyEquipment(), personalInventory: emptyInventory(),
         tier: '普通', element: Element.Fire, status: 'healthy', loyalty: 100, assignment: 'Idle', legacyPoints: 0,
-        mainMethodId: 0, movementMethodId: null, auxMethodIds: [], cultivationProgress: 95, developmentPlan: 'Balanced', divineAbilities: [],
+        mainMethodId: 0, movementMethodId: null, auxMethodIds: [], spiritPower: 95, developmentPlan: 'Balanced', divineAbilities: [],
         family: '邵家', sect: '无', position: '家主', fatherId: null
     },
 
@@ -128,7 +128,7 @@ export const INITIAL_MEMBERS_DATA: Omit<ClanMember, 'rootGrade'>[] = [
         combatProficiencies: { 剑法: 100, 拳法: 50, 枪法: 0, 刀法: 0, 弓箭: 0 },
         equippedItems: emptyEquipment(), personalInventory: emptyInventory(),
         tier: '超凡', element: Element.Water, status: 'healthy', loyalty: 100, assignment: 'Idle', legacyPoints: 0,
-        mainMethodId: 0, movementMethodId: null, auxMethodIds: [], cultivationProgress: 30, developmentPlan: 'Balanced', divineAbilities: ['霜天阵'],
+        mainMethodId: 0, movementMethodId: null, auxMethodIds: [], spiritPower: 30, developmentPlan: 'Balanced', divineAbilities: ['霜天阵'],
         family: '魏家', sect: '无', position: '长老', fatherId: null
     },
 
@@ -142,7 +142,7 @@ export const INITIAL_MEMBERS_DATA: Omit<ClanMember, 'rootGrade'>[] = [
         combatProficiencies: { 剑法: 3500, 拳法: 200, 枪法: 0, 刀法: 0, 弓箭: 0 },
         equippedItems: emptyEquipment(), personalInventory: emptyInventory(),
         tier: '绝世', element: Element.Water, status: 'healthy', loyalty: 100, assignment: 'Idle', legacyPoints: 0,
-        mainMethodId: 0, movementMethodId: null, auxMethodIds: [], cultivationProgress: 10, developmentPlan: 'Combat', divineAbilities: ['玄冰贯穿', '月落乌啼'],
+        mainMethodId: 0, movementMethodId: null, auxMethodIds: [], spiritPower: 10, developmentPlan: 'Combat', divineAbilities: ['玄冰贯穿', '月落乌啼'],
         family: '无', sect: '北寒宗', position: '执法长老', fatherId: null
     }
 ];

@@ -32,36 +32,36 @@ export const CLAN_MASTER_REGISTRY: ClanRegistry = {
     // 核心仓库
     inventory: {
         herbs: {
-            1300: 20, // 灵谷草 (基础口粮)
-            1301: 5,  // 清灵花
-            1302: 10   // 回气草
+            40100: 20, // 灵谷草 (基础口粮)
+            40101: 5,  // 清灵花
+            40102: 10   // 回气草
         },
         minerals: {
-            1400: 30, // 精铁 (李家铁匠铺常用)
-            1401: 2   // 赤铜精
+            50100: 30, // 精铁 (李家铁匠铺常用)
+            50101: 2   // 赤铜精
         },
         paper: 10,
         pills: {
-            1200: 10, // 止血散
-            1201: 5,  // 补气丸
-            1202: 2   // 凝气丹 (重宝)
+            30100: 10, // 止血散
+            30101: 5,  // 补气丸
+            30102: 2   //凝气丹 (重宝)
         },
         weapons: {
-            1100: 2,  // 凡铁剑
-            1109: 1   // 望月玉佩 (家主信物)
+            20100: 2,  // 凡铁剑
+            20901: 1   // 望月玉佩 (家主信物)
         },
         methods: {
-            1000: 1,  // 吐纳功
-            1003: 1   // 疾风步
+            10100: 1,  // 吐纳功
+            10102: 1   // 疾风步
         },
         scrolls: {
-            1600:1
+            60103: 1
         }
     },
 
     learnedRecipes: {
-        alchemy: [1200, 1201], // 止血散、补气丸
-        smithing: [1100],      // 凡铁剑
+        alchemy: [30100, 30101], // 止血散、补气丸
+        smithing: [20100],      // 凡铁剑
         talismans: []
     }
 };
@@ -74,12 +74,12 @@ export const OTHER_FACTIONS_REGISTRY: Record<string, Partial<ClanRegistry>> = {
         spiritStones: 1200,
         luck: 40,
         inventory: {
-            herbs: { 1300: 50, 1304: 10 },
-            minerals: { 1400: 100, 1401: 20 }, // 邵家多矿脉
+            herbs: { 40100: 50, 40104: 10 },
+            minerals: { 50100: 100, 50101: 20 }, // 邵家多矿脉
             paper: 5,
-            pills: { 1200: 20, 1202: 5 },
-            weapons: { 1101: 5 }, // 符纹快刀
-            methods: { 1000: 1, 1001: 1 },
+            pills: { 30100: 20, 30102: 5 },
+            weapons: { 20200: 5 }, // 符纹快刀
+            methods: { 10100: 1, 10200: 1 },
             scrolls: {}
         }
     },
@@ -87,12 +87,12 @@ export const OTHER_FACTIONS_REGISTRY: Record<string, Partial<ClanRegistry>> = {
         spiritStones: 85000, // 魏家是筑基家族，底蕴远超练气家族
         luck: 75,
         inventory: {
-            herbs: { 1303: 15, 1305: 10, 1306: 2 },
-            minerals: { 1402: 20, 1403: 5 }, // 玄金石, 玄铁母
+            herbs: { 40103: 15, 40105: 10, 40106: 2 },
+            minerals: { 50200: 20, 50300: 5 }, // 玄金石, 玄铁母
             paper: 50,
-            pills: { 1202: 20, 1204: 3, 1205: 1 }, // 包含筑基丹和降尘丹
-            weapons: { 1102: 3, 1105: 1 }, // 寒铁剑, 镇海印
-            methods: { 1001: 1, 1004: 1 }, // 太清养元功
+            pills: { 30102: 20, 30300: 3, 30401: 1 }, // 包含筑基丹和降尘丹
+            weapons: { 20300: 3, 20600: 1 }, // 寒铁剑, 镇海印
+            methods: { 10200: 1, 10300: 1 }, // 太清养元功
             scrolls: { } // 青锋剑器谱
         }
     },
@@ -100,12 +100,12 @@ export const OTHER_FACTIONS_REGISTRY: Record<string, Partial<ClanRegistry>> = {
         spiritStones: 677813,
         luck: 100,
         inventory: {
-            herbs: { 1307: 50 }, // 天星叶
-            minerals: { 1404: 100 }, // 云英石
+            herbs: { 40107: 50 }, // 天星叶
+            minerals: { 50400: 100 }, // 云英石
             paper: 1000,
-            pills: { 1207: 5, 1208: 1 }, // 金丹, 涅槃丹
-            weapons: { 1106: 5, 1108: 1 }, // 紫薇软剑, 羲和重剑
-            methods: { 1004: 1, 1005: 1 },
+            pills: { 30800: 5, 30900: 1 }, // 金丹, 涅槃丹
+            weapons: { 20700: 5, 20900: 1 }, // 紫薇软剑, 羲和重剑
+            methods: { 10300: 1, 10400: 1 },
             scrolls: {}
         }
     }

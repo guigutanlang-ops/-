@@ -12,7 +12,7 @@ export const STATIC_EVENTS: GameEvent[] = [
             spiritStones: 500, 
             merit: 10, 
             luck: 2, 
-            items: { 1300: 20 }, // 奖励 20 份灵谷草
+            items: { 40100: 20 }, // 奖励 20 份灵谷草
             log: "【岁时】灵谷丰产，家族喜获物资。" 
         }
     },
@@ -29,7 +29,7 @@ export const STATIC_EVENTS: GameEvent[] = [
         impact: { 
             merit: 5, 
             luck: -1, 
-            items: { 1402: 1 }, // 奖励 1 块玄金石
+            items: { 50200: 1 }, // 奖励 1 块玄金石
             log: "【因果】施恩散修，获赠一块不知名的玄金石。" 
         }
     },
@@ -43,7 +43,7 @@ export const STATIC_EVENTS: GameEvent[] = [
         impact: { 
             merit: 20, 
             luck: 10, 
-            items: { 1106: 1 }, // 奖励紫薇软剑
+            items: { 20700: 1 }, // 奖励紫薇软剑
             log: "【因果】昔日善果成真，不仅得闻洞府消息，更获赠名剑紫薇。" 
         }
     }

@@ -11,7 +11,7 @@ const Tooltip: React.FC<Props> = ({ state }) => {
 
     return (
         <div 
-            className="fixed z-[10000] pointer-events-none bg-[#1a1310]/95 border-2 border-yellow-900/40 p-5 rounded-sm shadow-[0_20px_60px_rgba(0,0,0,0.9)] backdrop-blur-md animate-fade-in font-serif max-w-[320px] ring-1 ring-white/5"
+            className="fixed z-[10000] pointer-events-none bg-[#1a1310]/95 border-2 border-yellow-900/40 p-5 rounded-sm shadow-[0_20px_60px_rgba(0,0,0,0.9)] backdrop-blur-md font-serif max-w-[320px] ring-1 ring-white/5"
             style={{ 
                 left: state.x, 
                 top: state.y, 

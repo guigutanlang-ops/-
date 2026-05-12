@@ -55,13 +55,13 @@ const ClanManagement: React.FC<Props> = ({ state, onUpdateMember, onUpdateBuildi
     if (!portalRoot) return null;
 
     return createPortal(
-        <div className="fixed inset-0 z-[500] flex items-center justify-center bg-black/90 backdrop-blur-md p-4 overflow-hidden select-none">
+        <div className="absolute inset-0 z-[5000] flex items-center justify-center bg-black/90 p-4 overflow-hidden select-none pointer-events-auto">
             <Tooltip state={tooltip} />
 
-            <div className="relative w-full max-w-6xl h-[85vh] bg-[#1a1310] border-[8px] border-[#4a3728] rounded-sm shadow-2xl flex flex-col font-serif">
+            <div className="relative w-[1500px] h-[920px] bg-[#1a1310] border-[8px] border-[#4a3728] rounded-sm shadow-2xl flex flex-col font-serif overflow-hidden">
                 {/* 页眉导航 */}
                 <div className="h-16 bg-[#2c1810] border-b border-yellow-900/30 flex items-center px-6 shrink-0 gap-6">
-                    <h2 className="text-2xl font-cursive text-yellow-600 pr-4 border-r border-yellow-900/20">望月大社</h2>
+                    <h2 className="text-2xl font-cursive text-yellow-600 pr-4 border-r border-yellow-900/20 whitespace-nowrap">望月大社</h2>
                     <div className="flex h-full overflow-x-auto scrollbar-hide">
                         {baseTabs.map(t => (
                             <button 

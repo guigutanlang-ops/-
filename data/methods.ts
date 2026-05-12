@@ -3,7 +3,7 @@ import { CultivationMethod, Element, Realm } from '../types';
 
 export const METHODS_DATA: CultivationMethod[] = [
     { 
-        id: 1000, 
+        id: 10100, 
         name: '吐纳功', 
         grade: 1, 
         quality: '下等', 
@@ -15,7 +15,7 @@ export const METHODS_DATA: CultivationMethod[] = [
         requirements: {  minRootGrade: '伪灵根' }
     },
     { 
-        id: 1001, 
+        id: 10200, 
         name: '归元诀', 
         grade: 2, 
         quality: '中等', 
@@ -27,7 +27,7 @@ export const METHODS_DATA: CultivationMethod[] = [
         requirements: { realm: Realm.QiRefinement}
     },
     { 
-        id: 1002, 
+        id: 10101, 
         name: '金锋术', 
         grade: 1, 
         quality: '下等', 
@@ -39,7 +39,7 @@ export const METHODS_DATA: CultivationMethod[] = [
         requirements: { realm: Realm.QiRefinement, minRoots: { gold: 2 } }
     },
     { 
-        id: 1003, 
+        id: 10102, 
         name: '疾风步', 
         grade: 1, 
         quality: '下等', 
@@ -51,7 +51,7 @@ export const METHODS_DATA: CultivationMethod[] = [
         requirements: { realm: Realm.QiRefinement }
     },
     { 
-        id: 1004, 
+        id: 10300, 
         name: '离火焚心经', 
         grade: 3, 
         quality: '上等', 
@@ -63,7 +63,7 @@ export const METHODS_DATA: CultivationMethod[] = [
         requirements: { realm: Realm.QiRefinement, minRoots: { fire: 6 } }
     },
     { 
-        id: 1005, 
+        id: 10400, 
         name: '太清养元功', 
         grade: 4, 
         quality: '上等', 

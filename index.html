@@ -3,7 +3,7 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>玄鉴仙族：昊天纪元</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@600;900&display=swap" rel="stylesheet">
@@ -56,15 +56,9 @@
         }
 
         .game-canvas {
-            position: absolute;
-            top: 50%;
-            left: 50%;
             width: 1920px;
             height: 1080px;
             background-color: #0E1512;
-            transform-origin: center center;
-            margin-left: -960px; 
-            margin-top: -540px;
             overflow: hidden;
             box-shadow: 0 0 100px rgba(0,0,0,1);
         }
@@ -149,7 +143,6 @@
         </defs>
     </svg>
 
-    <div id="portal-root"></div>
     <script type="module" src="/index.tsx"></script>
 </body>
 </html>

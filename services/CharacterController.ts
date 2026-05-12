@@ -23,7 +23,7 @@ export class CharacterController {
         if (member.realm === Realm.Mortal) return member;
 
         let nm = { ...member };
-        let progress = nm.cultivationProgress;
+        let progress = nm.spiritPower;
         let subRealm = nm.subRealm;
         const realmIdx = REALM_ORDER.indexOf(nm.realm);
 
@@ -34,18 +34,18 @@ export class CharacterController {
             progress -= currentReq;
             subRealm += 1;
             currentReq = getRequiredExp(realmIdx, subRealm);
-            logs.push(`【${year}载·晋升】${nm.name} 气息升华，实时突破至 ${nm.realm} ${subRealm}层。`);
+            logs.push(`【${year}载·晋升】${nm.name} 灵力周天圆满，突破至 ${nm.realm} · ${subRealm}层。`);
         }
 
         // 处理大圆满瓶颈
         if (subRealm === 9 && progress >= currentReq) {
             progress = currentReq;
-            if (member.subRealm < 9 || member.cultivationProgress < currentReq) {
-                logs.push(`【${year}载·瓶颈】${nm.name} 触碰天门，已达 ${nm.realm}巅峰之境。`);
+            if (member.subRealm < 9 || member.spiritPower < currentReq) {
+                logs.push(`【${year}载·瓶颈】${nm.name} 灵力已达当前境界极限，需寻求突破契机。`);
             }
         }
 
-        nm.cultivationProgress = progress;
+        nm.spiritPower = progress;
         nm.subRealm = subRealm;
         return nm;
     }
@@ -100,7 +100,7 @@ export class CharacterController {
             }
 
             // 应用任务基础倍率 * 槽位特定倍率
-            nm.cultivationProgress += baseGain * taskMultiplier * externalMultiplier;
+            nm.spiritPower += baseGain * taskMultiplier * externalMultiplier;
             nm = this.applyCultivationProgress(nm, turnLogs, year);
         } else if (nm.realm === Realm.Mortal) {
             nm.assignment = 'Idle';
@@ -127,7 +127,7 @@ export class CharacterController {
             }
         }
 
-        if (updates.cultivationProgress !== undefined) {
+        if (updates.spiritPower !== undefined) {
             nm = this.applyCultivationProgress(nm, logs, year);
         }
 
@@ -157,7 +157,7 @@ export class CharacterController {
                     ...nm,
                     realm: nextRealm,
                     subRealm: 1,
-                    cultivationProgress: 0,
+                    spiritPower: 0,
                     maxAge: nm.maxAge + 100,
                     legacyPoints: (nm.legacyPoints || 0) + 10
                 },
@@ -168,7 +168,7 @@ export class CharacterController {
                 updatedMember: {
                     ...nm,
                     subRealm: 8,
-                    cultivationProgress: 0,
+                    spiritPower: 0,
                     status: 'injured',
                     assignment: 'Recovery'
                 },

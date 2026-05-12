@@ -11,7 +11,7 @@ export const INITIAL_REGIONS_DATA: Region[] = [
         type: 'island', category: 'Natural', settlementType: 'Landmark', isDiscovered: true, 
         resources: ['白露花', '太阴精'],
         controlValue: 0, occupancyStatus: 'idle',
-        production: { items: { 1306: 5 } }
+        production: { items: { 40106: 5 } }
     },
 
     // --- 南岸：望月李氏 ---
@@ -33,7 +33,7 @@ export const INITIAL_REGIONS_DATA: Region[] = [
         type: 'field', category: 'Resource', settlementType: 'Resource', isDiscovered: true, 
         resources: ['灵谷草', '清灵花'],
         controlValue: 100, occupancyStatus: 'secured',
-        production: { items: { 1300: 10, 1301: 2 } }
+        production: { items: { 40100: 10, 40101: 2 } }
     },
     { 
         id: 'da_li_mountain', 
@@ -42,7 +42,7 @@ export const INITIAL_REGIONS_DATA: Region[] = [
         difficulty: 4, owner: '无', x: 15, y: 88, 
         type: 'mountain', category: 'Natural', settlementType: 'Minor', isDiscovered: true, 
         resources: ['赤脉藤', '白石髓'],
-        production: { items: { 1311: 3, 1312: 2 } }
+        production: { items: { 40201: 3, 40202: 2 } }
     },
     { 
         id: 'abandoned_iron_mine', 
@@ -51,7 +51,7 @@ export const INITIAL_REGIONS_DATA: Region[] = [
         difficulty: 2, owner: '无', x: 26, y: 84, 
         type: 'mine', category: 'Resource', settlementType: 'Resource', isDiscovered: true, 
         resources: ['精铁'],
-        production: { items: { 1400: 3 } }
+        production: { items: { 50100: 3 } }
     },
 
     // --- 西岸：邵家、魏家 ---
@@ -72,7 +72,7 @@ export const INITIAL_REGIONS_DATA: Region[] = [
         type: 'mine', category: 'Resource', settlementType: 'Resource', isDiscovered: true, 
         resources: ['精铁', '玄铁母'],
         controlValue: 100, occupancyStatus: 'secured',
-        production: { items: { 1400: 8, 1403: 1 } }
+        production: { items: { 50100: 8, 50300: 1 } }
     },
     { 
         id: 'wei_clan_valley', 
@@ -119,7 +119,7 @@ export const INITIAL_REGIONS_DATA: Region[] = [
         difficulty: 35, owner: '无', x: 92, y: 45, 
         type: 'cave', category: 'Mystic', settlementType: 'Landmark', isDiscovered: false, 
         resources: ['古法宝'],
-        production: { items: { 1206: 1 } }
+        production: { items: { 30600: 1 } }
     },
 
     // --- 北岸：北寒宗 ---

@@ -142,8 +142,8 @@ const CultivationRoomTab: React.FC<Props> = ({ building, members, inventory, alr
     const renderUpgradeModal = () => {
         if (!showUpgradeModal || !portalRoot) return null;
         return createPortal(
-            <div className="fixed inset-0 z-[1000] bg-black/90 backdrop-blur-xl flex items-center justify-center p-6 animate-fade-in">
-                <div className="relative w-full max-w-4xl h-[80vh] bg-[#1a1310] border-[10px] border-[#4a3728] rounded-sm shadow-2xl flex flex-col overflow-hidden">
+            <div className="absolute inset-0 z-[1000] bg-black/90 backdrop-blur-xl flex items-center justify-center p-12 animate-fade-in pointer-events-auto">
+                <div className="relative w-[1200px] h-[800px] bg-[#1a1310] border-[10px] border-[#4a3728] rounded-sm shadow-2xl flex flex-col overflow-hidden">
                     <div className="p-6 bg-[#2c1810] border-b border-yellow-900/30 flex justify-between items-center">
                         <div>
                             <h4 className="text-yellow-500 font-cursive text-2xl tracking-[0.2em]">灵 脉 升 阶 诏</h4>
@@ -229,7 +229,7 @@ const CultivationRoomTab: React.FC<Props> = ({ building, members, inventory, alr
                     {/* 数量选择子弹窗 */}
                     {itemPickingQty && (
                         <div className="fixed inset-0 z-[1050] bg-black/60 flex items-center justify-center p-4">
-                            <div className="bg-[#2c1810] border-2 border-yellow-900/40 p-6 rounded shadow-2xl max-w-xs w-full animate-fade-in">
+                            <div className="bg-[#2c1810] border-2 border-yellow-900/40 p-6 rounded shadow-2xl w-[90vw] max-w-[320px] animate-fade-in">
                                 <h5 className="text-yellow-500 font-bold text-sm mb-4 border-b border-yellow-900/20 pb-2">祭炼数量</h5>
                                 <div className="text-center mb-6">
                                     <p className="text-gray-300 text-xs mb-2">投入灵脉祭炼的 {(ALL_ITEM_DETAILS as any)[itemPickingQty.id]?.name}</p>
@@ -250,7 +250,7 @@ const CultivationRoomTab: React.FC<Props> = ({ building, members, inventory, alr
 
                     {isConfirmingUpgrade && (
                         <div className="fixed inset-0 z-[1100] bg-black/80 flex items-center justify-center p-4">
-                            <div className="bg-[#1a1310] border-4 border-[#4a3728] p-8 rounded shadow-2xl max-sm w-full text-center animate-fade-in">
+                            <div className="bg-[#1a1310] border-4 border-[#4a3728] p-8 rounded shadow-2xl max-w-sm w-[90vw] text-center animate-fade-in">
                                 <h4 className="text-2xl font-cursive text-yellow-500 mb-6">因 果 确 认</h4>
                                 <p className="text-gray-300 text-sm font-serif leading-relaxed mb-8">
                                     尔等确定要熔炼这些奇珍异宝吗？<br/>
@@ -272,8 +272,8 @@ const CultivationRoomTab: React.FC<Props> = ({ building, members, inventory, alr
     const renderMemberSelect = () => {
         if (!showMemberSelect || selectedSlotIdx === null || !portalRoot) return null;
         return createPortal(
-            <div className="fixed inset-0 z-[1200] bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
-                <div className="bg-[#1a1a1a] border-2 border-emerald-900/30 w-full max-w-md rounded shadow-2xl flex flex-col max-h-[80%] overflow-hidden animate-fade-in" onClick={(e) => e.stopPropagation()}>
+            <div className="absolute inset-0 z-[1200] bg-black/85 backdrop-blur-sm flex items-center justify-center p-4 pointer-events-auto">
+                <div className="bg-[#1a1a1a] border-2 border-emerald-900/30 w-[92vw] max-w-[480px] rounded shadow-2xl flex flex-col max-h-[85vh] overflow-hidden animate-fade-in" onClick={(e) => e.stopPropagation()}>
                     <div className="p-4 bg-[#121a15] border-b border-emerald-900/20 flex justify-between items-center">
                         <div>
                             <h4 className="text-emerald-500 font-bold text-sm tracking-widest">指派入室</h4>

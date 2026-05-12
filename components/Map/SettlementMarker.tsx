@@ -37,7 +37,7 @@ const SettlementMarker: React.FC<SettlementMarkerProps> = ({
     const baseSize = (isCapital ? 80 : 50) * visualScale;
     
     // 远景档位下，隐藏小型资源点，只保留核心城市
-    const isVisible = isCapital || scale >= 1.3;
+    const isVisible = isCapital || scale >= 0.3;
 
     if (!isVisible) return null;
 

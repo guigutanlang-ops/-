@@ -167,7 +167,7 @@ const WarehouseTab: React.FC<Props> = ({ inventory, members, onAssignItem, showT
                             if (!details) return null;
                             const style = getGradeStyle(details.grade);
                             const isFocused = focusedItemId === item.id;
-                            const canAssign = item.category === 'equipment' || item.category === 'pills';
+                            const canAssign = item.category === 'equipment' || item.category === 'pills' || item.category === 'methods';
 
                             return (
                                 <div key={item.id} className="flex flex-col gap-2 relative">

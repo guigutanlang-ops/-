@@ -45,7 +45,7 @@ const BreakthroughModal: React.FC<Props> = ({ member, onClose, onAttempt }) => {
 
         // Item bonuses
         let itemBonus = 0;
-        if (member.equippedItems.accessory === 1109) itemBonus = 5;
+        if (member.equippedItems.accessory === 20901) itemBonus = 5;
 
         // Selected pill bonus
         let pillBonus = 0;
@@ -87,9 +87,9 @@ const BreakthroughModal: React.FC<Props> = ({ member, onClose, onAttempt }) => {
     if (!portalRoot) return null;
 
     return createPortal(
-  <div className="fixed inset-0 z-[1200] flex items-center justify-center bg-black/85 backdrop-blur-xl animate-fade-in">
+  <div className="absolute inset-0 z-[9000] flex items-center justify-center bg-black/90 animate-fade-in pointer-events-auto">
     <div className="
-      relative w-full max-w-lg
+      relative w-[600px]
       bg-[#1b1512]
       border-[10px] border-[#6b4a2d]
       rounded-sm

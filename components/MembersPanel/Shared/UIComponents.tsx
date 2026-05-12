@@ -53,19 +53,19 @@ export const EquipSlot: React.FC<{
                 )}
             </div>
 
-            {itemId !== null && isFocused && (
-                <button 
-                    onClick={(e) => { e.stopPropagation(); onUnequip(); }}
-                    className={`absolute top-1/2 -translate-y-1/2 z-50 bg-red-900/80 text-white text-[11px] font-bold py-1 px-3 rounded-sm border border-red-400/30
-                        ${isLeftSide ? '-right-14' : '-left-14'}`}
-                >
-                    卸下
-                </button>
-            )}
-
-            <span className={`font-sans font-caption ${itemDetails ? style?.text : 'text-text-disabled'}`}>
+            <span className={`font-sans font-caption ${itemDetails ? style?.text : 'text-text-disabled'} text-[11px] font-bold`}>
                 {itemDetails ? itemDetails.name : label}
             </span>
+            <div className="h-5 flex items-center justify-center w-full mt-[3px]">
+                {itemId !== null && isFocused && (
+                    <button 
+                        onClick={(e) => { e.stopPropagation(); onUnequip(); }}
+                        className="animate-fade-in bg-red-900/40 hover:bg-red-900/80 text-white text-[10px] py-0.5 px-3 rounded-sm border border-red-500/30 transition-colors"
+                    >
+                        卸下
+                    </button>
+                )}
+            </div>
         </div>
     );
 };
@@ -84,13 +84,13 @@ export const SlotItem: React.FC<{
     const style = method ? getGradeStyle(method.grade) : null;
 
     return (
-        <div className="flex flex-col items-center gap-2 group relative">
+        <div className="flex flex-col items-center gap-1 group relative">
             <div 
                 onClick={(e) => { e.stopPropagation(); onClick(); }}
                 onMouseEnter={onMouseEnter}
                 onMouseLeave={onMouseLeave}
                 className={`w-14 h-14 rounded-sm border cursor-pointer transition-all flex items-center justify-center
-                    ${isFocused ? 'ring-2 ring-accent-gold/50' : ''}
+                    ${isFocused ? 'ring-2 ring-accent-gold/50 shadow-[0_0_15px_rgba(201,160,99,0.2)]' : ''}
                     ${method ? `${style?.border} ${style?.bg}` : 'bg-bg-panel border-border-soft'}`}
             >
                 {method ? (
@@ -98,21 +98,20 @@ export const SlotItem: React.FC<{
                 ) : (
                     <span className="text-text-disabled text-[10px] font-medium opacity-30">空</span>
                 )}
-                
-                {methodId !== null && isFocused && (
-                    <div className="absolute inset-0 bg-bg-main/90 flex items-center justify-center p-1 animate-fade-in">
-                        <button 
-                            onClick={(e) => { e.stopPropagation(); onUnequip(); }}
-                            className="bg-red-900/80 text-white text-[10px] py-1 px-2 rounded-sm"
-                        >
-                            卸下
-                        </button>
-                    </div>
-                )}
             </div>
-            <span className={`font-sans font-caption ${method ? style?.text : 'text-text-disabled'}`}>
+            <span className={`font-sans font-caption ${method ? style?.text : 'text-text-disabled'} text-[11px] font-bold`}>
                 {method ? method.name : label}
             </span>
+            <div className="h-5 flex items-center justify-center w-full mt-[1px]">
+                {methodId !== null && isFocused && (
+                    <button 
+                        onClick={(e) => { e.stopPropagation(); onUnequip(); }}
+                        className="animate-fade-in bg-red-900/40 hover:bg-red-900/80 text-white text-[10px] py-0.5 px-2 rounded-sm border border-red-500/30 transition-colors tracking-widest"
+                    >
+                        卸下
+                    </button>
+                )}
+            </div>
         </div>
     );
 };

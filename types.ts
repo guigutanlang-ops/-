@@ -148,7 +148,7 @@ export interface ClanMember {
         treasure: number | null;
     };
     personalInventory: Inventory;
-    cultivationProgress: number;
+    spiritPower: number;
     developmentPlan: DevelopmentPlan;
     divineAbilities: string[];
     family: string;

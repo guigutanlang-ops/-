@@ -16,14 +16,14 @@ interface Props {
     onOverviewChange?: (isOverview: boolean) => void;
 }
 
-// 定义世界地图的实际逻辑尺寸（大于视口 1920x1080）
-const WORLD_W = 9600; 
-const WORLD_H = 5400;
+// 定义世界地图的实际逻辑尺寸
+const WORLD_W = 3200; 
+const WORLD_H = 1800;
 const VIEW_W = 1920;
 const VIEW_H = 1080;
 
-const ZOOM_STEPS = [0.2,0.3]; // 允许缩到比 1.0 小以看到全貌
-const INITIAL_ZOOM_IDX = 0; // 默认 1.0
+const ZOOM_STEPS = [0.6, 1, 1.5, 2.5]; 
+const INITIAL_ZOOM_IDX = 0; 
 
 const WorldMap: React.FC<Props> = ({ 
     regions, 
@@ -38,8 +38,15 @@ const WorldMap: React.FC<Props> = ({
     const [camera, setCamera] = useState({ x: WORLD_W / 2, y: WORLD_H / 2 }); 
     const [isDragging, setIsDragging] = useState(false);
     const lastMousePos = useRef({ x: 0, y: 0 });
+    const lastPinchDistance = useRef<number | null>(null);
 
     const isOverview = scale < 0.8;
+
+    const getDistance = (t1: React.Touch, t2: React.Touch) => {
+        const dx = t1.clientX - t2.clientX;
+        const dy = t1.clientY - t2.clientY;
+        return Math.sqrt(dx * dx + dy * dy);
+    };
 
     /**
      * 核心：计算摄像机合法位置
@@ -87,29 +94,70 @@ const WorldMap: React.FC<Props> = ({
         handleZoom(e.deltaY > 0 ? 'out' : 'in');
     };
 
-    const handleMouseDown = (e: React.MouseEvent) => {
-        if (e.button !== 0) return;
+    const handleDragStart = (x: number, y: number) => {
         setIsDragging(true);
-        lastMousePos.current = { x: e.clientX, y: e.clientY };
+        lastMousePos.current = { x, y };
     };
 
-    const handleMouseMove = (e: React.MouseEvent) => {
+    const handleDragMove = (x: number, y: number) => {
         if (!isDragging) return;
-        // 鼠标移动的像素距离
-        const dx = e.clientX - lastMousePos.current.x;
-        const dy = e.clientY - lastMousePos.current.y;
+        const dx = x - lastMousePos.current.x;
+        const dy = y - lastMousePos.current.y;
         
-        // 转换为世界坐标系下的移动（需要除以缩放倍率）
         setCamera(prev => {
             const nextX = prev.x - dx / scale;
             const nextY = prev.y - dy / scale;
             return getClampedCamera(nextX, nextY, scale);
         });
         
-        lastMousePos.current = { x: e.clientX, y: e.clientY };
+        lastMousePos.current = { x, y };
     };
 
-    const handleMouseUp = () => setIsDragging(false);
+    const handleDragEnd = () => setIsDragging(false);
+
+    const handleMouseDown = (e: React.MouseEvent) => {
+        if (e.button !== 0) return;
+        handleDragStart(e.clientX, e.clientY);
+    };
+
+    const handleMouseMove = (e: React.MouseEvent) => {
+        handleDragMove(e.clientX, e.clientY);
+    };
+
+    const handleMouseUp = () => handleDragEnd();
+
+    const handleTouchStart = (e: React.TouchEvent) => {
+        if (e.touches.length === 1) {
+            handleDragStart(e.touches[0].clientX, e.touches[0].clientY);
+            lastPinchDistance.current = null;
+        } else if (e.touches.length === 2) {
+            setIsDragging(false);
+            lastPinchDistance.current = getDistance(e.touches[0], e.touches[1]);
+        }
+    };
+
+    const handleTouchMove = (e: React.TouchEvent) => {
+        // Prevent scrolling while interacting with map
+        if (e.cancelable) e.preventDefault();
+
+        if (e.touches.length === 1) {
+            handleDragMove(e.touches[0].clientX, e.touches[0].clientY);
+        } else if (e.touches.length === 2 && lastPinchDistance.current !== null) {
+            const currentDist = getDistance(e.touches[0], e.touches[1]);
+            const delta = currentDist - lastPinchDistance.current;
+            
+            // Threshold for zoom
+            if (Math.abs(delta) > 30) {
+                handleZoom(delta > 0 ? 'in' : 'out');
+                lastPinchDistance.current = currentDist;
+            }
+        }
+    };
+
+    const handleTouchEnd = () => {
+        handleDragEnd();
+        lastPinchDistance.current = null;
+    };
 
     /**
      * 计算渲染位置：
@@ -137,12 +185,17 @@ const WorldMap: React.FC<Props> = ({
 
     return (
         <div 
-            className={`w-full h-full relative overflow-hidden bg-[#020403] ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+            className={`w-full h-full relative overflow-hidden bg-[#020403] border-4 border-red-500/20 ${isDragging ? 'cursor-grabbing' : 'cursor-grab'}`}
+            style={{ touchAction: 'none' }}
             onWheel={handleWheel}
             onMouseDown={handleMouseDown}
             onMouseMove={handleMouseMove}
             onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseUp}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+            onTouchCancel={handleTouchEnd}
         >
             {/* 1. 世界层：地形、气场 */}
             <div 
@@ -156,10 +209,12 @@ const WorldMap: React.FC<Props> = ({
                 }}
             >
                 {/* 地形底图 - 此时它铺满 WORLD_W x WORLD_H */}
-                <div className="absolute inset-0 z-0 bg-[#0a0f0d]" 
+                <div className="absolute inset-0 z-0 bg-[#0d1310]" 
                      style={{ 
-                        backgroundImage: `url(${IMAGE_ASSETS.MAP.WORLD_BASE})`, 
+                        backgroundImage: `url('https://r.jina.ai/i/05825d706f964a2781d4a04d334e3a89')`, 
                         backgroundSize: '100% 100%',
+                        backgroundRepeat: 'no-repeat',
+                        opacity: 0.9,
                      }} 
                 />
 

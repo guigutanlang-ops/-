@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { ClanMember, Inventory } from '../../../types';
 import { ALL_ITEM_DETAILS } from '../../../constants';
 import { getGradeStyle } from '../Shared/utils';
@@ -126,6 +127,14 @@ const BagTab: React.FC<Props> = ({ member, onUsePill, onEquip, onContributeItem,
     const confirmModalAction = () => {
         if (!modalItem || !modalAction) return;
 
+        // 如果选择数量为0，则直接关闭弹窗
+        if (selectedQty <= 0) {
+            setShowActionModal(false);
+            setFocusedItem(null);
+            setIsFinalConfirm(false);
+            return;
+        }
+
         // 如果是上交且还没有进行最终确认，则切换到最终确认状态
         if (modalAction === 'contribute' && !isFinalConfirm) {
             setIsFinalConfirm(true);
@@ -178,49 +187,70 @@ const BagTab: React.FC<Props> = ({ member, onUsePill, onEquip, onContributeItem,
                             const isRestricted = details.requiredRealm && member.realm !== details.requiredRealm;
                             const isFocused = focusedItem === item.id;
 
-                            return (
-                                <div key={item.id} className="flex flex-col gap-[5px] pointer-events-auto">
-                                    <div 
-                                        onClick={(e) => { e.stopPropagation(); setFocusedItem(isFocused ? null : item.id); }} 
-                                        onMouseEnter={(e) => showTooltip(e, renderItemTooltip(item.id))} 
-                                        onMouseLeave={hideTooltip} 
-                                        className={`${style.bg} border-2 ${isFocused ? 'border-yellow-500 scale-[1.02]' : style.border} ${style.glow} p-3 rounded-lg flex flex-col items-center aspect-[4/5] justify-between shadow-lg relative group overflow-hidden transition-all duration-200 cursor-pointer ${isRestricted ? 'opacity-50 grayscale' : ''}`}
-                                    >
-                                        <div className={`text-3xl mt-2 group-hover:scale-110 transition-transform ${style.shadow}`}>
-                                            {item.category === 'equipment' ? '⚔️' : item.category === 'pills' ? '💊' : item.category === 'materials' ? '💎' : item.category === 'scrolls' ? '📜' : '📖'}
-                                        </div>
-                                        <span className={`text-[11px] font-bold text-center truncate w-full mt-2 px-1 ${style.text} ${style.shadow}`}>{details.name}</span>
-                                        <span className="text-[11px] font-bold text-yellow-600/80 font-mono">数量：{item.count}</span>
-                                    </div>
+                                                            const isCultivating = item.category === 'methods' && (
+                                                                member.mainMethodId === item.id || 
+                                                                member.movementMethodId === item.id || 
+                                                                member.auxMethodIds.includes(item.id)
+                                                            );
 
-                                    {isFocused && (
-                                        <div 
-                                            className="bg-black/95 border border-yellow-900/40 rounded-lg p-1.5 w-full max-w-full min-w-0 flex flex-col gap-1.5 animate-fade-in z-20 shadow-xl"
-                                            onClick={(e) => e.stopPropagation()}
-                                        >
-                                            <div className="flex flex-col gap-1 w-full">
-                                                <div className="flex gap-2 w-full">
-                                                    {item.category !== 'materials' && item.category !== 'scrolls' && (
-                                                        <button 
-                                                            onClick={() => isRestricted ? null : initiateAction(item, 'use')} 
-                                                            disabled={isRestricted}
-                                                            className={`flex-1 whitespace-nowrap text-center text-white text-[10px] leading-tight py-1 px-1 rounded font-bold ${style.bg.replace('40', '90')} border ${style.border} active:scale-95 transition-all shadow-lg hover:brightness-125 disabled:opacity-30`}
-                                                        >
-                                                            {item.category === 'pills' ? '使用' : item.category === 'equipment' ? '佩戴' : '修炼' }
-                                                        </button>
-                                                    )}
-                                                    <button 
-                                                        onClick={() => initiateAction(item, 'contribute')} 
-                                                        className="flex-1 whitespace-nowrap text-center text-yellow-500 text-[10px] leading-tight py-1 px-1 rounded font-bold bg-yellow-900/20 border border-yellow-600/40 active:scale-95 transition-all shadow-lg hover:bg-yellow-900/40"
-                                                    >
-                                                        上交
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            );
+                                                            const isBreakthroughPill = item.category === 'pills' && 
+                                                                details.effects?.breakthroughBonus && 
+                                                                !details.effects?.cultivationProgress && 
+                                                                !details.effects?.status &&
+                                                                !details.effects?.aptitude &&
+                                                                !details.effects?.comprehension &&
+                                                                !details.effects?.maxAge &&
+                                                                !details.effects?.divineSense;
+
+                                                            return (
+                                                                <div key={item.id} className="flex flex-col gap-[5px] pointer-events-auto">
+                                                                    <div 
+                                                                        onClick={(e) => { e.stopPropagation(); setFocusedItem(isFocused ? null : item.id); }} 
+                                                                        onMouseEnter={(e) => showTooltip(e, renderItemTooltip(item.id))} 
+                                                                        onMouseLeave={hideTooltip} 
+                                                                        className={`${style.bg} border-2 ${isFocused ? 'border-yellow-500 scale-[1.02]' : style.border} ${style.glow} p-3 rounded-lg flex flex-col items-center aspect-[4/5] justify-between shadow-lg relative group overflow-hidden transition-all duration-200 cursor-pointer ${isRestricted ? 'opacity-50 grayscale' : ''}`}
+                                                                    >
+                                                                        {(isCultivating || isBreakthroughPill) && (
+                                                                            <div className={`absolute top-0 right-0 ${isCultivating ? 'bg-accent-jade/80' : 'bg-red-900/80'} text-white text-[8px] px-1 py-0.5 rounded-bl-sm font-bold z-10 animate-fade-in`}>
+                                                                                {isCultivating ? '修炼中' : '破镜丹'}
+                                                                            </div>
+                                                                        )}
+                                                                        <div className={`text-3xl mt-2 group-hover:scale-110 transition-transform ${style.shadow}`}>
+                                                                            {item.category === 'equipment' ? '⚔️' : item.category === 'pills' ? '💊' : item.category === 'materials' ? '💎' : item.category === 'scrolls' ? '📜' : '📖'}
+                                                                        </div>
+                                                                        <span className={`text-[11px] font-bold text-center truncate w-full mt-2 px-1 ${style.text} ${style.shadow}`}>{details.name}</span>
+                                                                        <span className="text-[11px] font-bold text-yellow-600/80 font-mono">数量：{item.count}</span>
+                                                                    </div>
+                                
+                                                                    {isFocused && (
+                                                                        <div 
+                                                                            className="bg-black/95 border border-yellow-900/40 rounded-lg p-1.5 w-full max-w-full min-w-0 flex flex-col gap-1.5 animate-fade-in z-20 shadow-xl"
+                                                                            onClick={(e) => e.stopPropagation()}
+                                                                        >
+                                                                            <div className="flex flex-col gap-1 w-full">
+                                                                                <div className="flex gap-2 w-full">
+                                                                                    {item.category !== 'materials' && item.category !== 'scrolls' && (
+                                                                                        <button 
+                                                                                            onClick={() => (isRestricted || isBreakthroughPill) ? null : initiateAction(item, 'use')} 
+                                                                                            disabled={isRestricted || isBreakthroughPill}
+                                                                                            className={`flex-1 whitespace-nowrap text-center text-white text-[10px] leading-tight py-1 px-1 rounded font-bold ${style.bg.replace('40', '90')} border ${style.border} active:scale-95 transition-all shadow-lg hover:brightness-125 disabled:opacity-50 disabled:grayscale disabled:cursor-not-allowed`}
+                                                                                        >
+                                                                                            {isBreakthroughPill ? '突破使用' : (item.category === 'pills' ? '使用' : item.category === 'equipment' ? '佩戴' : '修炼')}
+                                                                                        </button>
+                                                                                    )}
+                                                                                    <button 
+                                                                                        onClick={() => !isCultivating && initiateAction(item, 'contribute')} 
+                                                                                        disabled={isCultivating}
+                                                                                        className={`flex-1 whitespace-nowrap text-center text-yellow-500 text-[10px] leading-tight py-1 px-1 rounded font-bold bg-yellow-900/20 border border-yellow-600/40 active:scale-95 transition-all shadow-lg hover:bg-yellow-900/40 disabled:opacity-30 disabled:grayscale disabled:cursor-not-allowed`}
+                                                                                    >
+                                                                                        收回
+                                                                                    </button>
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            );
                         })}
                     </div>
                 ) : (
@@ -232,40 +262,40 @@ const BagTab: React.FC<Props> = ({ member, onUsePill, onEquip, onContributeItem,
             </div>
 
             {/* 操作弹窗 (数量选择 & 确认) */}
-            {showActionModal && modalItem && (
-                <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-                    <div className="bg-[#1a1310] border-4 border-[#4a3728] p-8 rounded-sm shadow-2xl max-w-sm w-full text-center relative overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            {showActionModal && modalItem && createPortal(
+                <div className="absolute inset-0 z-[10000] bg-black/40 flex items-center justify-center p-8 pointer-events-auto" onClick={() => setShowActionModal(false)}>
+                    <div className="bg-[#1a1310] border-2 border-[#4a3728] p-10 rounded-sm shadow-[0_0_60px_rgba(0,0,0,0.9)] w-[500px] text-center relative overflow-hidden transform animate-in fade-in zoom-in duration-200" onClick={(e) => e.stopPropagation()}>
                         <div className="absolute top-0 left-0 w-full h-1 bg-yellow-600/30"></div>
-                        <h4 className="text-2xl font-cursive text-yellow-500 mb-6 tracking-widest">
+                        <h4 className="text-2xl font-cursive text-yellow-500 mb-8 tracking-widest">
                             {modalAction === 'use' ? '服用灵丹' : '收回物品'}
                         </h4>
                         
-                        <div className="bg-black/60 p-6 rounded-sm border border-white/5 mb-8">
+                        <div className="bg-black/60 p-8 rounded-sm border border-white/5 mb-8">
                             {!isFinalConfirm ? (
                                 <>
-                                    <div className="flex flex-col items-center gap-2 mb-4">
-                                        <span className="text-3xl">{(ALL_ITEM_DETAILS as any)[modalItem.id]?.category === 'pills' ? '💊' : '📦'}</span>
-                                        <p className="text-yellow-500 font-bold text-lg">{(ALL_ITEM_DETAILS as any)[modalItem.id]?.name}</p>
+                                    <div className="flex flex-col items-center gap-4 mb-6">
+                                        <span className="text-4xl">{(ALL_ITEM_DETAILS as any)[modalItem.id]?.category === 'pills' ? '💊' : '📦'}</span>
+                                        <p className="text-yellow-500 font-bold text-xl">{(ALL_ITEM_DETAILS as any)[modalItem.id]?.name}</p>
                                     </div>
 
-                                    <p className="text-gray-400 text-xs mb-6 font-serif leading-relaxed">
+                                    <p className="text-gray-400 text-sm mb-8 font-serif leading-relaxed px-4">
                                         {modalAction === 'use' 
                                             ? `确定要消耗该丹药以精进修为吗？` 
-                                            : `确定要将此物收回，由家族掌控吗？`}
+                                            : `确定将此物收缴，归于家族宝库之中吗？`}
                                     </p>
 
                                     {(modalItem.count > 1 || modalAction === 'contribute') && (
-                                        <div className="space-y-3">
+                                        <div className="space-y-4">
                                             <div className="flex items-center justify-between px-2">
-                                                <span className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">选择数量</span>
-                                                <span className="text-[12px] text-yellow-500 font-mono font-bold">
+                                                <span className="text-xs text-gray-500 font-bold uppercase tracking-widest">选择数量</span>
+                                                <span className="text-lg text-yellow-500 font-mono font-bold">
                                                     {selectedQty} / {modalItem.count}
                                                 </span>
                                             </div>
-                                            <div className="flex items-center gap-3 bg-white/5 p-2 rounded border border-white/10">
+                                            <div className="flex items-center gap-4 bg-white/5 p-3 rounded border border-white/10">
                                                 <button 
                                                     onClick={() => setSelectedQty(Math.max(1, selectedQty - 1))}
-                                                    className="w-10 h-10 flex items-center justify-center bg-black/40 text-yellow-500 hover:text-yellow-400 rounded border border-white/5 active:scale-90 transition-all font-bold text-lg"
+                                                    className="w-12 h-12 flex items-center justify-center bg-black/40 text-yellow-500 hover:text-yellow-400 rounded border border-white/5 active:scale-90 transition-all font-bold text-2xl"
                                                 >-</button>
                                                 <input 
                                                     type="range"
@@ -273,32 +303,32 @@ const BagTab: React.FC<Props> = ({ member, onUsePill, onEquip, onContributeItem,
                                                     max={modalItem.count}
                                                     value={selectedQty}
                                                     onChange={(e) => setSelectedQty(parseInt(e.target.value))}
-                                                    className="flex-1 accent-yellow-600"
+                                                    className="flex-1 accent-yellow-600 h-2"
                                                 />
                                                 <button 
                                                     onClick={() => setSelectedQty(Math.min(modalItem.count, selectedQty + 1))}
-                                                    className="w-10 h-10 flex items-center justify-center bg-black/40 text-yellow-500 hover:text-yellow-400 rounded border border-white/5 active:scale-90 transition-all font-bold text-lg"
+                                                    className="w-12 h-12 flex items-center justify-center bg-black/40 text-yellow-500 hover:text-yellow-400 rounded border border-white/5 active:scale-90 transition-all font-bold text-2xl"
                                                 >+</button>
                                             </div>
-                                            <div className="flex justify-center gap-2">
-                                                <button onClick={() => setSelectedQty(1)} className="text-[9px] text-gray-600 hover:text-gray-400 px-2">最小</button>
-                                                <button onClick={() => setSelectedQty(modalItem.count)} className="text-[9px] text-gray-600 hover:text-gray-400 px-2">最大</button>
+                                            <div className="flex justify-center gap-8">
+                                                <button onClick={() => setSelectedQty(1)} className="text-xs text-gray-500 hover:text-gray-300 font-bold">最小</button>
+                                                <button onClick={() => setSelectedQty(modalItem.count)} className="text-xs text-gray-500 hover:text-gray-300 font-bold">最大</button>
                                             </div>
                                         </div>
                                     )}
                                 </>
                             ) : (
-                                <div className="animate-fade-in flex flex-col items-center">
-                                    <div className="text-4xl mb-4">📜</div>
-                                    <p className="text-yellow-500 font-bold text-lg mb-2">确认收回</p>
-                                    <p className="text-gray-300 text-sm font-serif leading-relaxed">
-                                        您确定要将 <span className="text-white font-bold">{selectedQty}</span> 个 <span className="text-yellow-400 font-bold">{(ALL_ITEM_DETAILS as any)[modalItem.id]?.name}</span> 收回吗？
+                                <div className="animate-fade-in flex flex-col items-center py-6">
+                                    <div className="text-5xl mb-6">📜</div>
+                                    <p className="text-yellow-500 font-bold text-xl mb-3">确认收回</p>
+                                    <p className="text-gray-300 text-base font-serif leading-relaxed">
+                                        收回 <span className="text-white font-bold">{selectedQty}</span> 个 <span className="text-yellow-400 font-bold">{(ALL_ITEM_DETAILS as any)[modalItem.id]?.name}</span> 至家族宝库？
                                     </p>
                                 </div>
                             )}
                         </div>
 
-                        <div className="flex gap-4">
+                        <div className="flex gap-6">
                             <button 
                                 onClick={() => {
                                     if (isFinalConfirm) {
@@ -307,20 +337,21 @@ const BagTab: React.FC<Props> = ({ member, onUsePill, onEquip, onContributeItem,
                                         setShowActionModal(false);
                                     }
                                 }}
-                                className="flex-1 py-2.5 bg-black/40 border border-[#4a3728] text-gray-500 rounded-sm font-bold hover:text-gray-300 transition-all text-xs tracking-widest"
+                                className="flex-1 py-3.5 bg-black/40 border border-[#4a3728] text-gray-500 rounded-sm font-bold hover:text-gray-300 transition-all text-sm tracking-widest"
                             >
                                 {isFinalConfirm ? '返回' : '取消'}
                             </button>
                             <button 
                                 onClick={confirmModalAction}
-                                className={`flex-1 py-2.5 rounded-sm font-bold transition-all shadow-xl text-xs tracking-widest border border-white/10
+                                className={`flex-1 py-3.5 rounded-sm font-bold transition-all shadow-xl text-sm tracking-widest border border-white/10
                                     ${modalAction === 'use' ? 'bg-blue-900/80 text-blue-100 hover:bg-blue-800' : 'bg-yellow-900/80 text-yellow-100 hover:bg-yellow-800'}`}
                             >
                                 {isFinalConfirm ? '确认收回' : '确定'}
                             </button>
                         </div>
                     </div>
-                </div>
+                </div>,
+                document.getElementById('portal-root') || document.body
             )}
         </div>
     );

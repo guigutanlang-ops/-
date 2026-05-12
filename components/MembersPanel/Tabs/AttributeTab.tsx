@@ -1,7 +1,9 @@
 import React from 'react';
-import { ClanMember, TaskType } from '../../../types';
+import { ClanMember, TaskType, Realm } from '../../../types';
 import { getTierColor, getRootGradeColor, getElementColorClass, getElementName } from '../Shared/utils';
-import { TASK_INFO, ASPIRATIONS } from '../../../constants';
+import { TASK_INFO, ASPIRATIONS, REALM_ORDER } from '../../../constants';
+import { getRequiredExp } from '../../Xiulian/CultivationSystem';
+import CanvasSpiritBar from '../../Shared/CanvasSpiritBar';
 
 interface Props {
     member: ClanMember;
@@ -31,6 +33,24 @@ const AttributeTab: React.FC<Props> = ({ member, showPhysiqueTooltip, hideToolti
                         基础属性
                     </h4>
                     <div className="space-y-1">
+                        <InfoRow label="修为" value={`${member.realm} · 第 ${member.subRealm} 层`} valueClass="text-yellow-500 font-bold" />
+                        {member.realm !== Realm.Mortal && (
+                            <div className="py-2 border-b border-border-soft">
+                                <div className="flex justify-between items-center mb-1.5">
+                                    <span className="font-sans font-body text-text-muted text-xs">灵力进度</span>
+                                    <span className="font-mono text-[10px] text-gray-500">
+                                        {Math.floor(member.spiritPower)} / {Math.floor(getRequiredExp(REALM_ORDER.indexOf(member.realm), member.subRealm))}
+                                    </span>
+                                </div>
+                                <CanvasSpiritBar 
+                                    progress={Math.min(1, member.spiritPower / getRequiredExp(REALM_ORDER.indexOf(member.realm), member.subRealm))}
+                                    color="#2563eb"
+                                    glowColor="#22d3ee"
+                                    height={6}
+                                    className="rounded-full overflow-hidden border border-white/5"
+                                />
+                            </div>
+                        )}
                         <InfoRow label="性别" value={member.gender} valueClass="text-gray-300" />
                         <InfoRow label="寿元" value={`${member.age} / ${member.maxAge} 载`} valueClass={member.maxAge - member.age < 10 ? 'text-red-400' : 'text-gray-300'} />
                         <InfoRow label="家族" value={member.family} valueClass="text-gray-300"/>
