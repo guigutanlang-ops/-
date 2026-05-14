@@ -1,31 +1,49 @@
 import React from 'react';
-import { ClanMember, TaskType, Realm } from '../../../types';
-import { getTierColor, getRootGradeColor, getElementColorClass, getElementName } from '../Shared/utils';
+import { GameState, ClanMember, TaskType, Realm } from '../../../types';
+import { getTierColor, getRootGradeColor, getElementColorClass, getElementName, calculateMemberMultiplier } from '../Shared/utils';
 import { TASK_INFO, ASPIRATIONS, REALM_ORDER } from '../../../constants';
 import { getRequiredExp } from '../../Xiulian/CultivationSystem';
 import CanvasSpiritBar from '../../Shared/CanvasSpiritBar';
 
 interface Props {
     member: ClanMember;
+    state: GameState;
     showPhysiqueTooltip: (e: React.MouseEvent) => void;
     hideTooltip: () => void;
 }
 
-const AttributeTab: React.FC<Props> = ({ member, showPhysiqueTooltip, hideTooltip }) => {
+const AttributeTab: React.FC<Props> = ({ member, state, showPhysiqueTooltip, hideTooltip }) => {
+    const totalMultiplier = calculateMemberMultiplier(member, state);
     const aspirationInfo = ASPIRATIONS[member.aspiration] || ASPIRATIONS['Unset'];
     const taskDetails = TASK_INFO[member.assignment];
 
-    const InfoRow = ({ label, value, valueClass = "text-text-main" }: { label: string, value: string | number, valueClass?: string }) => (
-        <div className="flex justify-between items-center py-2 border-b border-border-soft">
+    const [displaySubRealm, setDisplaySubRealm] = React.useState(member.subRealm);
+    const [showPromotion, setShowPromotion] = React.useState(false);
+
+    React.useEffect(() => {
+        setDisplaySubRealm(member.subRealm);
+    }, [member.id, member.realm]);
+
+    const handleLevelChange = (lvl: number) => {
+        setDisplaySubRealm(lvl);
+        setShowPromotion(true);
+        setTimeout(() => setShowPromotion(false), 2000);
+    };
+
+    const InfoRow = ({ label, value, valueClass = "text-text-main", children }: { label: string, value?: string | number, valueClass?: string, children?: React.ReactNode }) => (
+        <div className="flex justify-between items-center py-2 border-b border-border-soft relative">
             <span className="font-sans font-body text-text-muted">{label}</span>
-            <span className={`font-sans font-value ${valueClass}`}>{value}</span>
+            <div className="flex items-center gap-2">
+                {value !== undefined && <span className={`font-sans font-value ${valueClass}`}>{value}</span>}
+                {children}
+            </div>
         </div>
     );
 
     const hasSpecialPhysique = member.physique !== '无' && member.physique !== '凡体' && member.physique !== '';
 
     return (
-        <div className="h-full overflow-y-auto custom-scrollbar pr-4 pt-2 space-y-10 animate-fade-in">
+        <div className="h-full overflow-y-auto custom-scrollbar pr-4 pt-2 space-y-10 animate-fade-in text-zinc-300">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-x-16 gap-y-10">
                 <section>
                     <h4 className="font-serif font-semibold font-h1 text-text-main/80 mb-6 flex items-center gap-3">
@@ -33,7 +51,13 @@ const AttributeTab: React.FC<Props> = ({ member, showPhysiqueTooltip, hideToolti
                         基础属性
                     </h4>
                     <div className="space-y-1">
-                        <InfoRow label="修为" value={`${member.realm} · 第 ${member.subRealm} 层`} valueClass="text-yellow-500 font-bold" />
+                        <InfoRow label="修为" value={`${member.realm} · 第 ${displaySubRealm} 层`} valueClass="text-yellow-500 font-bold">
+                            {showPromotion && (
+                                <span className="absolute -top-1 right-0 text-accent-jade text-[10px] font-bold animate-bounce whitespace-nowrap">
+                                    晋升！
+                                </span>
+                            )}
+                        </InfoRow>
                         {member.realm !== Realm.Mortal && (
                             <div className="py-2 border-b border-border-soft">
                                 <div className="flex justify-between items-center mb-1.5">
@@ -44,6 +68,9 @@ const AttributeTab: React.FC<Props> = ({ member, showPhysiqueTooltip, hideToolti
                                 </div>
                                 <CanvasSpiritBar 
                                     progress={Math.min(1, member.spiritPower / getRequiredExp(REALM_ORDER.indexOf(member.realm), member.subRealm))}
+                                    level={member.subRealm}
+                                    resetKey={member.id}
+                                    onLevelChange={handleLevelChange}
                                     color="#2563eb"
                                     glowColor="#22d3ee"
                                     height={6}

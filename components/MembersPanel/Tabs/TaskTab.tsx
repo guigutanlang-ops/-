@@ -1,18 +1,27 @@
 
 import React from 'react';
-import { ClanMember, TaskType, Realm } from '../../../types';
+import { ClanMember, TaskType, Realm, GameState } from '../../../types';
 import { TASK_INFO } from '../../../constants';
+import { calculateMemberMultiplier } from '../Shared/utils';
 
 interface Props {
     member: ClanMember;
+    state: GameState;
     onUpdateTask: (task: TaskType) => void;
 }
 
-const TaskTab: React.FC<Props> = ({ member, onUpdateTask }) => {
+const TaskTab: React.FC<Props> = ({ member, state, onUpdateTask }) => {
     // 凡人只能是“无”
     const isMortal = member.realm === Realm.Mortal;
     // 是否受伤
     const isInjured = member.status === 'injured';
+
+    // 计算当前的实时总效率（如果切换到该任务）
+    const getEfficiency = (taskKey: TaskType) => {
+        // 创建一个模拟成员来计算如果切换到该任务后的真实倍率
+        const mockMember = { ...member, assignment: taskKey };
+        return calculateMemberMultiplier(mockMember, state);
+    };
 
     const getAvailableTasks = (): TaskType[] => {
         if (isMortal) return ['Idle'];
@@ -65,7 +74,7 @@ const TaskTab: React.FC<Props> = ({ member, onUpdateTask }) => {
                             <div className="flex items-center gap-3">
                                 <p className="text-base font-bold">{info.label}</p>
                                 <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded border ${info.color.replace('text', 'border')} ${info.color} bg-black/20`}>
-                                    经验 {info.multiplier * 100}%
+                                    效率 {(getEfficiency(taskKey) * 100).toFixed(0)}%
                                 </span>
                             </div>
                             <span className={`text-[10px] px-2 py-0.5 rounded border ${info.color.replace('text', 'border')}`}>

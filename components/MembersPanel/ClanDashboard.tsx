@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { GameState, ClanMember, Realm, CultivationMethod } from '../../types';
 import { REALM_ORDER, TASK_INFO } from '../../constants';
@@ -19,6 +19,74 @@ interface Props {
 }
 
 const ITEMS_PER_PAGE = 20; // 增加每页显示人数
+
+const MemberRow: React.FC<{ 
+    m: ClanMember; 
+    isSelected: boolean; 
+    onClick: () => void;
+}> = ({ m, isSelected, onClick }) => {
+    const [displaySubRealm, setDisplaySubRealm] = useState(m.subRealm);
+    const [showPromotion, setShowPromotion] = useState(false);
+
+    useEffect(() => {
+        setDisplaySubRealm(m.subRealm);
+    }, [m.id, m.realm]);
+
+    const handleLevelChange = (lvl: number) => {
+        setDisplaySubRealm(lvl);
+        setShowPromotion(true);
+        setTimeout(() => setShowPromotion(false), 2000);
+    };
+
+    return (
+        <div 
+            onClick={onClick} 
+            className={`p-5 rounded-sm border transition-all cursor-pointer group animate-fade-in
+                ${isSelected 
+                    ? 'bg-accent-jade/15 border-accent-jade/50 shadow-[0_0_20px_rgba(77,124,107,0.2)] scale-[1.02]' 
+                    : 'bg-white/[0.02] border-white/5 hover:bg-white/[0.05] hover:border-border-soft/60'}`}
+        >
+            <div className="flex justify-between items-center mb-3">
+                <span className={`font-serif text-lg tracking-widest transition-colors ${isSelected ? 'text-accent-gold font-bold' : 'text-gray-300 group-hover:text-accent-jade'}`}>
+                    {m.name}
+                </span>
+                <div className="relative">
+                    <span className={`font-serif text-sm px-2 py-0.5 rounded-sm bg-black/40 border border-white/5 ${isSelected ? 'text-accent-gold' : 'text-text-muted'}`}>
+                        {getRealmText(m.realm, displaySubRealm)}
+                    </span>
+                    {showPromotion && (
+                        <div className="absolute -top-6 right-0 text-accent-jade font-bold text-xs animate-bounce whitespace-nowrap drop-shadow-sm">
+                            晋升！
+                        </div>
+                    )}
+                </div>
+            </div>
+            <div className="flex justify-between items-center text-[11px] tracking-wider mb-2">
+                <span className={`font-bold ${getRootGradeColor(m.rootGrade)}`}>◈ {m.rootGrade}</span>
+                <span className={`font-medium px-2 py-0.5 rounded-sm bg-black/20 ${TASK_INFO[m.assignment]?.color || 'text-text-disabled'}`}>
+                    {TASK_INFO[m.assignment]?.label || '未知'}
+                </span>
+            </div>
+            {m.realm !== Realm.Mortal && (
+                <CanvasSpiritBar 
+                    progress={Math.min(1, m.spiritPower / getRequiredExp(REALM_ORDER.indexOf(m.realm), m.subRealm))}
+                    level={m.subRealm}
+                    resetKey={m.id}
+                    onLevelChange={handleLevelChange}
+                    color="#3b82f6"
+                    glowColor="#60a5fa"
+                    height={4}
+                    className="rounded-full overflow-hidden border border-white/5 opacity-60"
+                />
+            )}
+            {isSelected && (
+                 <div className="mt-4 pt-3 border-t border-accent-jade/20 flex justify-end">
+                    <span className="text-[9px] text-accent-jade font-bold animate-pulse uppercase tracking-[0.2em]">镜照虚实 ◈ 详情</span>
+                 </div>
+            )}
+        </div>
+    );
+};
 
 const ClanDashboard: React.FC<Props> = ({ state, onUpdateMember, onAddMember, onOpenBreakthrough, onContributeItem }) => {
     const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
@@ -60,43 +128,12 @@ const ClanDashboard: React.FC<Props> = ({ state, onUpdateMember, onAddMember, on
 
             <div className="flex-1 overflow-y-auto p-5 space-y-3 custom-scrollbar bg-gradient-to-b from-transparent to-black/10">
                 {pagedMembers.map(m => (
-                    <div 
-                        key={m.id} 
-                        onClick={() => activeTab === 'alive' && setSelectedMemberId(m.id)} 
-                        className={`p-5 rounded-sm border transition-all cursor-pointer group animate-fade-in
-                            ${selectedMemberId === m.id 
-                                ? 'bg-accent-jade/15 border-accent-jade/50 shadow-[0_0_20px_rgba(77,124,107,0.2)] scale-[1.02]' 
-                                : 'bg-white/[0.02] border-white/5 hover:bg-white/[0.05] hover:border-border-soft/60'}`}
-                    >
-                        <div className="flex justify-between items-center mb-3">
-                            <span className={`font-serif text-lg tracking-widest transition-colors ${selectedMemberId === m.id ? 'text-accent-gold font-bold' : 'text-gray-300 group-hover:text-accent-jade'}`}>
-                                {m.name}
-                            </span>
-                            <span className={`font-serif text-sm px-2 py-0.5 rounded-sm bg-black/40 border border-white/5 ${selectedMemberId === m.id ? 'text-accent-gold' : 'text-text-muted'}`}>
-                                {getRealmText(m.realm, m.subRealm)}
-                            </span>
-                        </div>
-                        <div className="flex justify-between items-center text-[11px] tracking-wider mb-2">
-                            <span className={`font-bold ${getRootGradeColor(m.rootGrade)}`}>◈ {m.rootGrade}</span>
-                            <span className={`font-medium px-2 py-0.5 rounded-sm bg-black/20 ${TASK_INFO[m.assignment]?.color || 'text-text-disabled'}`}>
-                                {TASK_INFO[m.assignment]?.label || '未知'}
-                            </span>
-                        </div>
-                        {m.realm !== Realm.Mortal && (
-                            <CanvasSpiritBar 
-                                progress={Math.min(1, m.spiritPower / getRequiredExp(REALM_ORDER.indexOf(m.realm), m.subRealm))}
-                                color="#3b82f6"
-                                glowColor="#60a5fa"
-                                height={4}
-                                className="rounded-full overflow-hidden border border-white/5 opacity-60"
-                            />
-                        )}
-                        {selectedMemberId === m.id && (
-                             <div className="mt-4 pt-3 border-t border-accent-jade/20 flex justify-end">
-                                <span className="text-[9px] text-accent-jade font-bold animate-pulse uppercase tracking-[0.2em]">镜照虚实 ◈ 详情</span>
-                             </div>
-                        )}
-                    </div>
+                    <MemberRow 
+                        key={m.id}
+                        m={m}
+                        isSelected={selectedMemberId === m.id}
+                        onClick={() => activeTab === 'alive' && setSelectedMemberId(m.id)}
+                    />
                 ))}
             </div>
 

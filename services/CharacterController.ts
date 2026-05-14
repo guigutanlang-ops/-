@@ -1,5 +1,5 @@
 import { ClanMember, Realm, RootGrade, TaskType } from '../types';
-import { REALM_ORDER } from '../constants';
+import { REALM_ORDER, TASK_INFO } from '../constants';
 import { calculateQuarterlyExpGain, getRequiredExp } from '../components/Xiulian/CultivationSystem';
 
 export class CharacterController {
@@ -84,23 +84,19 @@ export class CharacterController {
         // 3. 修为增长逻辑
         const hasRoots = Object.values(nm.roots).some(v => v > 0);
         if (hasRoots && nm.realm !== Realm.Mortal) {
-            const baseGain = calculateQuarterlyExpGain(nm);
-            let taskMultiplier = 0.1;
+            // 首先计算基于当前属性和功法的理论产出
+            const potentialGain = calculateQuarterlyExpGain(nm);
+            
+            // 获取任务相关的效率系数
+            const taskMultiplier = TASK_INFO[nm.assignment]?.multiplier ?? 1.0;
+            
+            // 获取外部环境（如灵脉、建筑）的加成系数
+            const environmentalMultiplier = externalMultiplier;
 
-            switch (nm.assignment) {
-                case 'Cultivation': taskMultiplier = 1.0; break;
-                case 'Research':
-                case 'Alchemy':
-                case 'Smithing': taskMultiplier = 0.6; break;
-                case 'Mission': taskMultiplier = 0.4; break;
-                case 'Recovery': taskMultiplier = 0.2; break;
-                case 'Travel':
-                case 'Idle': taskMultiplier = 0.1; break;
-                default: taskMultiplier = 0.1;
-            }
+            // 最终获取灵力值 = (理论产出 * 环境加成) * 任务倍率
+            const finalGain = (potentialGain * environmentalMultiplier) * taskMultiplier;
 
-            // 应用任务基础倍率 * 槽位特定倍率
-            nm.spiritPower += baseGain * taskMultiplier * externalMultiplier;
+            nm.spiritPower += finalGain;
             nm = this.applyCultivationProgress(nm, turnLogs, year);
         } else if (nm.realm === Realm.Mortal) {
             nm.assignment = 'Idle';

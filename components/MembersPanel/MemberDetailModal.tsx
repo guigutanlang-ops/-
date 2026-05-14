@@ -10,6 +10,7 @@ import Tooltip from '../Shared/Tooltip';
 import { TooltipState } from '../Shared/useTooltip';
 
 import AttributeTab from './Tabs/AttributeTab';
+import TaskTab from './Tabs/TaskTab';
 import CanvasSpiritBar from '../Shared/CanvasSpiritBar';
 import TalentTab from './Tabs/TalentTab';
 import RelationTab from './Tabs/RelationTab';
@@ -44,6 +45,7 @@ const MemberDetailModal: React.FC<Props> = (props) => {
     const tabs = useMemo(() => {
         const allTabs = [
             { id: 'attr', name: '👤 属性' },
+            { id: 'tasks', name: '📋 调令' },
             { id: 'talents', name: '📜 天赋' },
             { id: 'relations', name: '🤝 关系' },
             { id: 'cultivation', name: '🌀 功法' },
@@ -64,10 +66,41 @@ const MemberDetailModal: React.FC<Props> = (props) => {
         }
     }, [member.id, tabs, detailTab]);
 
+    const [displaySubRealm, setDisplaySubRealm] = useState(member.subRealm);
+    const [isBarFinished, setIsBarFinished] = useState(false);
+    const [showPromotionEffect, setShowPromotionEffect] = useState(false);
+
+    // 同步重置状态以防一帧闪烁
+    const [prevSyncState, setPrevSyncState] = useState({ id: member.id, power: member.spiritPower, level: member.subRealm, realm: member.realm });
+    if (prevSyncState.id !== member.id || prevSyncState.realm !== member.realm || prevSyncState.power !== member.spiritPower || prevSyncState.level !== member.subRealm) {
+        setPrevSyncState({ id: member.id, power: member.spiritPower, level: member.subRealm, realm: member.realm });
+        setIsBarFinished(false);
+        if (prevSyncState.id !== member.id || prevSyncState.realm !== member.realm) {
+            setDisplaySubRealm(member.subRealm);
+        }
+    }
+    
+    // 移除异步的重置 Effect，已经合并到上面同步逻辑中
+
     const isBreakthroughNeeded = () => {
         const realmIdx = REALM_ORDER.indexOf(member.realm);
-        const req = getRequiredExp(realmIdx, member.subRealm);
-        return member.subRealm === 9 && member.spiritPower >= req && member.realm !== Realm.YuanShen;
+        const req = getRequiredExp(realmIdx, displaySubRealm);
+        return displaySubRealm === 9 && member.spiritPower >= req && member.realm !== Realm.YuanShen;
+    };
+
+    const isActuallyShowingBreakthrough = isBreakthroughNeeded() && isBarFinished;
+
+    const handleLevelChange = (lvl: number) => {
+        const isPromotion = lvl > displaySubRealm;
+        setDisplaySubRealm(lvl);
+        if (isPromotion) {
+            setShowPromotionEffect(true);
+            setTimeout(() => setShowPromotionEffect(false), 2000);
+        }
+    };
+
+    const handleAnimationComplete = () => {
+        setIsBarFinished(true);
     };
 
     const requiredExp = getRequiredExp(REALM_ORDER.indexOf(member.realm), member.subRealm);
@@ -191,12 +224,14 @@ const MemberDetailModal: React.FC<Props> = (props) => {
                                     <p className="text-[10px] text-yellow-600/60 font-bold tracking-[0.3em] mb-1">
                                         修为境界
                                     </p>
-                                    <p className={`text-3xl font-cursive font-bold drop-shadow-lg ${isBreakthroughNeeded() ? 'text-red-500 animate-pulse' : 'text-yellow-500'}`}>
+                                    <p className={`text-3xl font-cursive font-bold drop-shadow-lg ${isActuallyShowingBreakthrough ? 'text-red-500 animate-pulse' : 'text-yellow-500'}`}>
                                         {member.realm}
                                     </p>
-                                    <p className="text-xs text-gray-400 mt-2 font-bold tracking-widest uppercase border-t border-yellow-900/20 pt-1">
-                                        第 {member.subRealm} 层
-                                    </p>
+                                    <div className="relative">
+                                        <p className="text-xs text-gray-400 mt-2 font-bold tracking-widest uppercase border-t border-yellow-900/20 pt-1">
+                                            第 {displaySubRealm} 层
+                                        </p>
+                                    </div>
                                 </div>
                             </div>
 
@@ -209,9 +244,16 @@ const MemberDetailModal: React.FC<Props> = (props) => {
                         {!isMortal && (
                             <div className="w-full mt-10 px-6 py-4 bg-black/40 border border-yellow-900/10 rounded-lg shadow-xl relative overflow-hidden" onClick={(e) => e.stopPropagation()}>
                                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent pointer-events-none"></div>
+                                {showPromotionEffect && (
+                                    <div className="absolute top-[3px] right-4 z-50 animate-bounce">
+                                        <span className="text-xl font-black text-yellow-400 drop-shadow-[0_0_15px_rgba(251,191,36,1)] tracking-widest font-cursive">
+                                            晋升！
+                                        </span>
+                                    </div>
+                                )}
                                 <div className="flex justify-between items-end mb-3 relative z-10">
-                                    <span className={`text-[11px] font-bold uppercase tracking-[0.2em] ${isBreakthroughNeeded() ? 'text-red-400' : 'text-blue-400'}`}>
-                                        {isBreakthroughNeeded() ? '突破之机已至' : '灵力积蓄中'}
+                                    <span className={`text-[11px] font-bold uppercase tracking-[0.2em] ${isActuallyShowingBreakthrough ? 'text-red-400' : 'text-blue-400'}`}>
+                                        {isActuallyShowingBreakthrough ? '突破之机已至' : '灵力积蓄中'}
                                     </span>
                                     <span className="text-[10px] font-mono font-bold text-gray-500">
                                         {Math.floor(member.spiritPower)} / {Math.floor(requiredExp)} 
@@ -219,12 +261,16 @@ const MemberDetailModal: React.FC<Props> = (props) => {
                                 </div>
                                 <CanvasSpiritBar 
                                     progress={progressPercent / 100}
-                                    color={isBreakthroughNeeded() ? "#dc2626" : "#2563eb"}
-                                    glowColor={isBreakthroughNeeded() ? "#f97316" : "#22d3ee"}
+                                    level={member.subRealm}
+                                    resetKey={member.id}
+                                    onLevelChange={handleLevelChange}
+                                    onAnimationComplete={handleAnimationComplete}
+                                    color={isActuallyShowingBreakthrough ? "#dc2626" : "#2563eb"}
+                                    glowColor={isActuallyShowingBreakthrough ? "#f97316" : "#22d3ee"}
                                     height={10}
                                     className="rounded-full overflow-hidden border border-white/5 shadow-inner"
                                 />
-                                {isBreakthroughNeeded() && (
+                                {isActuallyShowingBreakthrough && (
                                     <p className="mt-3 text-[10px] text-red-500 text-center font-bold animate-bounce tracking-widest">
                                         境界圆满 ◈ 待机突破
                                     </p>
@@ -232,7 +278,7 @@ const MemberDetailModal: React.FC<Props> = (props) => {
                             </div>
                         )}
 
-                        {isBreakthroughNeeded() && (
+                        {isActuallyShowingBreakthrough && (
                             <button 
                                 onClick={() => onOpenBreakthrough(member.id)} 
                                 className="mt-8 w-full py-4 bg-gradient-to-r from-red-900 to-red-800 text-white font-bold rounded border border-red-500 text-base tracking-[0.4em] hover:brightness-125 transition-all shadow-[0_0_30px_rgba(220,38,38,0.4)] relative group"
@@ -244,7 +290,8 @@ const MemberDetailModal: React.FC<Props> = (props) => {
                     </div>
 
                     <div className="flex-1 p-8 overflow-hidden bg-[#1a2521]/50 flex flex-col min-h-0" onClick={(e) => e.stopPropagation()}>
-                        {detailTab === 'attr' && <AttributeTab member={member} showPhysiqueTooltip={(e) => showTooltip(e, renderPhysiqueTooltip(member.physique))} hideTooltip={hideTooltip} />}
+                        {detailTab === 'attr' && <AttributeTab member={member} state={state} showPhysiqueTooltip={(e) => showTooltip(e, renderPhysiqueTooltip(member.physique))} hideTooltip={hideTooltip} />}
+                        {detailTab === 'tasks' && <TaskTab member={member} state={state} onUpdateTask={(task) => onUpdateMember(member.id, { assignment: task })} />}
                         {detailTab === 'talents' && <TalentTab member={member} />}
                         {detailTab === 'relations' && <RelationTab member={member} state={state} onSelectMember={onSelectMember} />}
                         {detailTab === 'cultivation' && <CultivationTab member={member} state={state} onToggleMethod={handleToggleMethod} showMethodTooltip={(e, m) => showTooltip(e, renderMethodTooltip(m))} hideTooltip={hideTooltip} />}

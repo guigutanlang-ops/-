@@ -134,7 +134,7 @@ const App: React.FC = () => {
             return {
                 ...prev,
                 members: updatedMembers,
-                logs: logs.length > 0 ? [...logs, ...prev.logs].slice(0, 30) : prev.logs
+                logs: logs.length > 0 ? [...[...logs].reverse(), ...prev.logs].slice(0, 30) : prev.logs
             };
         });
     };
@@ -456,7 +456,7 @@ const App: React.FC = () => {
                 spiritStones: prev.spiritStones + spiritStonesDelta,
                 merit: prev.merit + meritDelta,
                 inventory: newInventoryState,
-                logs: [...turnLogs, ...prev.logs].slice(0, 40)
+                logs: [...[...turnLogs].reverse(), ...prev.logs].slice(0, 40)
             }));
             if (newEvents.length > 0) setPendingEvents(newEvents);
         } finally {

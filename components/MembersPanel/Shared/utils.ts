@@ -1,6 +1,32 @@
 
-import { Realm, TalentTier, RootGrade, ClanMember } from '../../../types';
+import { Realm, TalentTier, RootGrade, ClanMember, GameState } from '../../../types';
 import { GENERATION_PAIRS } from '../../../data/metadata';
+import { TASK_INFO, VEIN_LEVELS, CULTIVATION_SLOT_BONUSES } from '../../../constants';
+
+/**
+ * 计算成员当前的修炼总倍率（包含任务、灵脉和建筑位加成）
+ */
+export const calculateMemberMultiplier = (member: ClanMember, state: GameState): number => {
+    const taskInfo = TASK_INFO[member.assignment];
+    const taskMultiplier = taskInfo ? taskInfo.multiplier : 1.0;
+    const baseMultiplier = member.realm === Realm.Mortal ? 0.2 : 1.0;
+
+    let externalMultiplier = 1.0;
+    const cultRoom = state.buildings.find(b => b.type === 'CultivationRoom' && b.isFinished);
+    
+    if (cultRoom && cultRoom.assignedMemberIds) {
+        const assignedIndex = cultRoom.assignedMemberIds.indexOf(member.id);
+        if (assignedIndex !== -1) {
+            const veinBonus = VEIN_LEVELS[cultRoom.veinLevel || 0]?.bonus || 1.0;
+            const tierKey = assignedIndex < 4 ? 'Jia' : assignedIndex < 8 ? 'Yi' : 'Bing';
+            const slotInTier = assignedIndex % 4;
+            const baseMult = CULTIVATION_SLOT_BONUSES[tierKey]?.[slotInTier] || 1.0;
+            externalMultiplier = baseMult * veinBonus;
+        }
+    }
+
+    return baseMultiplier * taskMultiplier * externalMultiplier;
+};
 
 /**
  * 递归计算族人的代数

@@ -59,7 +59,7 @@ export const RECIPES_DATA = {
     {
       "id": 60103,
       "name": "凡铁剑剑谱",
-      "grade": 1,
+      "grade": 0,
       "productId": 20100,
       "turns": 1,
       "cost": { "50100": 10 }, // 精铁
