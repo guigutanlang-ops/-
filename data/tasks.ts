@@ -6,7 +6,7 @@ export const TASK_INFO_DATA: Record<TaskType, { label: string; color: string; de
     Research: { label: '研习典籍', color: 'text-purple-400', desc: '增加家族底蕴', multiplier: 0.7 },
     Alchemy: { label: '炼制丹药', color: 'text-pink-400', desc: '在炼丹室开炉炼丹', multiplier: 0.7 },
     Smithing: { label: '炼制法器', color: 'text-cyan-400', desc: '在炼器坊打铁炼器', multiplier: 0.7 },
-    Recovery: { label: '休养生息', color: 'text-red-400', desc: '静养伤势，恢复元气', multiplier: 0.5 },
+    Recovery: { label: '休养生息', color: 'text-red-400', desc: '静养伤势，恢复元气', multiplier: 0.3 },
     Mission: { label: '外出派遣', color: 'text-orange-400', desc: '正在执行家族领地任务', multiplier: 0.5 },
     Travel: { label: '外出游历', color: 'text-amber-500', desc: '行走大川，寻觅机缘', multiplier: 0.6 },
     Idle: { label: '无', color: 'text-gray-400', desc: '暂无特定事务', multiplier: 1.0}

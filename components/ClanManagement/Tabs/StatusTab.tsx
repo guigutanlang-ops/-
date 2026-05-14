@@ -1,6 +1,6 @@
 
 import React, { useMemo } from 'react';
-import { GameState, Realm } from '../../../types';
+import { GameState, Realm, InjuryStatus } from '../../../types';
 import { REALM_ORDER } from '../../../constants';
 
 interface Props {
@@ -8,7 +8,7 @@ interface Props {
 }
 
 const StatusTab: React.FC<Props> = ({ state }) => {
-    const aliveMembers = useMemo(() => state.members.filter(m => m.status !== 'dead' && m.family === '望月李氏'), [state.members]);
+    const aliveMembers = useMemo(() => state.members.filter(m => m.status !== InjuryStatus.Dead && m.family === '望月李氏'), [state.members]);
 
     const realmStats = useMemo(() => {
         const stats: Record<string, number> = {};

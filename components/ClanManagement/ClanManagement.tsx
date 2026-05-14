@@ -22,6 +22,7 @@ interface Props {
     onUpdateMember: (id: string, updates: Partial<ClanMember>) => void;
     onUpdateBuilding: (id: string, updates: Partial<Building>) => void;
     onUpdateInventory: (updates: Partial<Inventory>) => void;
+    onUpdateSpiritStones: (amount: number) => void;
     onAddBuilding: (type: string) => void;
     onCancelBuilding?: (id: string) => void;
     onAssignBuilding: (buildingId: string, memberId: string | null, slotIndex?: number) => void;
@@ -30,7 +31,7 @@ interface Props {
     onUnlockPosition?: (pos: string, cost: number) => void;
 }
 
-const ClanManagement: React.FC<Props> = ({ state, onUpdateMember, onUpdateBuilding, onUpdateInventory, onAddBuilding, onCancelBuilding, onAssignBuilding, onAssignItem, onClose, onUnlockPosition }) => {
+const ClanManagement: React.FC<Props> = ({ state, onUpdateMember, onUpdateBuilding, onUpdateInventory, onUpdateSpiritStones, onAddBuilding, onCancelBuilding, onAssignBuilding, onAssignItem, onClose, onUnlockPosition }) => {
     const [activeTab, setActiveTab] = useState<string>('status');
     const { tooltip, showTooltip, hideTooltip } = useTooltip();
 
@@ -135,8 +136,13 @@ const ClanManagement: React.FC<Props> = ({ state, onUpdateMember, onUpdateBuildi
                             building={library} 
                             members={state.members} 
                             inventory={state.inventory}
+                            spiritStones={state.spiritStones}
                             alreadyAssignedIds={alreadyAssignedIds} 
                             onAssignBuilding={onAssignBuilding} 
+                            onUpdateBuilding={onUpdateBuilding}
+                            onUpdateInventory={onUpdateInventory}
+                            onUpdateMember={onUpdateMember}
+                            onUpdateSpiritStones={onUpdateSpiritStones}
                             showTooltip={showTooltip}
                             hideTooltip={hideTooltip}
                         />
@@ -150,6 +156,7 @@ const ClanManagement: React.FC<Props> = ({ state, onUpdateMember, onUpdateBuildi
                             onAssignBuilding={onAssignBuilding} 
                             onUpdateBuilding={onUpdateBuilding}
                             onUpdateInventory={onUpdateInventory}
+                            onUpdateMember={onUpdateMember}
                             showTooltip={showTooltip}
                             hideTooltip={hideTooltip}
                         />
@@ -158,8 +165,14 @@ const ClanManagement: React.FC<Props> = ({ state, onUpdateMember, onUpdateBuildi
                         <SmithyTab 
                             building={smithy} 
                             members={state.members} 
+                            inventory={state.inventory}
                             alreadyAssignedIds={alreadyAssignedIds} 
                             onAssignBuilding={onAssignBuilding} 
+                            onUpdateBuilding={onUpdateBuilding}
+                            onUpdateInventory={onUpdateInventory}
+                            onUpdateMember={onUpdateMember}
+                            showTooltip={showTooltip}
+                            hideTooltip={hideTooltip}
                         />
                     )}
                     {activeTab === 'cultivation_room' && cultivationRoom && (

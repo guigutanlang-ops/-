@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useLayoutEffect, useCallback } from 'react';
-import { GameState, ClanMember, Region, Realm, Building, Inventory, GameEvent, TaskType } from './types';
+import React, { useState, useEffect, useLayoutEffect, useCallback, useMemo } from 'react';
+import { GameState, ClanMember, Region, Realm, Building, Inventory, GameEvent, TaskType, InjuryStatus } from './types';
 import { INITIAL_MEMBERS, INITIAL_REGIONS, REALM_ORDER, BUILDING_TYPES, ALL_ITEM_DETAILS, RECIPES, CULTIVATION_SLOT_BONUSES, VEIN_LEVELS } from './constants';
 import { CLAN_MASTER_REGISTRY } from './data/master_registry';
 import { CharacterController } from './services/CharacterController';
 import { EventController } from './services/EventController';
 import { OracleService } from './services/OracleService';
+import { getRequiredExp } from './components/Xiulian/CultivationSystem';
 import ClanDashboard from './components/MembersPanel/ClanDashboard';
 import WorldMap from './components/Map/WorldMap';
 import ClanManagement from './components/ClanManagement/ClanManagement';
@@ -34,12 +35,13 @@ const App: React.FC = () => {
             buildings: [],
             inventory: CLAN_MASTER_REGISTRY.inventory,
             currentRegionId: '',
-            logs: ["太平历初，望月李氏在此立基。"],
+            logs: [{ id: 'init', text: "太平历初，望月李氏在此立基。", isNew: false }],
             heritagePool: CLAN_MASTER_REGISTRY.heritagePool,
             unlockedPositions: ['家主', '弟子'],
             flags: {},
             eventQueue: [],
-            factionReputation: { '魏家': 50, '邵家': 50, '北寒宗': 50 } 
+            factionReputation: { '魏家': 50, '邵家': 50, '北寒宗': 50 },
+            unreadLogCount: 0
         };
     });
 
@@ -51,6 +53,7 @@ const App: React.FC = () => {
     const [breakingMemberId, setBreakingMemberId] = useState<string | null>(null);
     const [isMapOverview, setIsMapOverview] = useState(false);
     const [isFullscreen, setIsFullscreen] = useState(false);
+    const [skipReminders, setSkipReminders] = useState(false);
 
     const [scale, setScale] = useState(1);
     const [isPortrait, setIsPortrait] = useState(false);
@@ -82,7 +85,7 @@ const App: React.FC = () => {
         setScale(Math.max(newScale, 0.05));
     }, []);
 
-    useEffect(() => {
+    useLayoutEffect(() => {
         updateScale();
         
         const handleResize = () => {
@@ -115,8 +118,10 @@ const App: React.FC = () => {
             const oracle = OracleService.getYearlyOracle(state);
             setState(prev => ({
                 ...prev,
-                logs: [`【昊天镜】老祖谕令：${oracle}`, ...prev.logs].slice(0, 40)
+                logs: [{ id: `oracle_${Date.now()}_${Math.random()}`, text: `【昊天镜】老祖谕令：${oracle}`, isNew: true }, ...prev.logs].slice(0, 40),
+                unreadLogCount: (prev.unreadLogCount || 0) + 1
             }));
+            setIsConsoleCollapsed(false);
         }
     }, [state.year]);
 
@@ -125,16 +130,19 @@ const App: React.FC = () => {
             const member = prev.members.find(m => m.id === id);
             if (!member) return prev;
             const { updatedMember, logs } = CharacterController.updateMember(member, updates, prev.year);
+            const newLogEntries = logs.map(l => ({ id: `log_${Date.now()}_${Math.random()}`, text: l, isNew: true }));
             let updatedMembers = prev.members.map(m => m.id === id ? updatedMember : m);
             if (updates.position === '家主') {
                 updatedMembers = updatedMembers.map(m => 
                     (m.position === '家主' && m.id !== id) ? { ...m, position: '弟子' } : m
                 );
             }
+            if (newLogEntries.length > 0) setIsConsoleCollapsed(false);
             return {
                 ...prev,
                 members: updatedMembers,
-                logs: logs.length > 0 ? [...[...logs].reverse(), ...prev.logs].slice(0, 30) : prev.logs
+                logs: newLogEntries.length > 0 ? [...[...newLogEntries].reverse(), ...prev.logs].slice(0, 30) : prev.logs,
+                unreadLogCount: (prev.unreadLogCount || 0) + newLogEntries.length
             };
         });
     };
@@ -177,12 +185,16 @@ const App: React.FC = () => {
             (newClanInventory as any)[catKey] = clanCatItems;
 
             const itemDetail = ALL_ITEM_DETAILS[itemId] as any;
+            const logText = `【收回】${member.name} 的 ${itemDetail?.name || '物品'} x${quantity} 已被收回族库。`;
+            const newLogEntry = { id: `log_${Date.now()}_${Math.random()}`, text: logText, isNew: true };
 
+            setIsConsoleCollapsed(false);
             return {
                 ...prev,
                 inventory: newClanInventory,
                 members: prev.members.map(m => m.id === memberId ? { ...m, personalInventory: newMemberInventory } : m),
-                logs: [`【收回】${member.name} 的 ${itemDetail?.name || '物品'} x${quantity} 已被收回族库。`, ...prev.logs].slice(0, 30)
+                logs: [newLogEntry, ...prev.logs].slice(0, 30),
+                unreadLogCount: (prev.unreadLogCount || 0) + 1
             };
         });
     };
@@ -219,12 +231,16 @@ const App: React.FC = () => {
             };
 
             const itemDetail = ALL_ITEM_DETAILS[itemId] as any;
+            const logText = `【分配】家族将 ${itemDetail?.name || '物品'} x${quantity} 赐予 ${member.name}。`;
+            const newLogEntry = { id: `log_${Date.now()}_${Math.random()}`, text: logText, isNew: true };
 
+            setIsConsoleCollapsed(false);
             return {
                 ...prev,
                 inventory: newClanInventory,
                 members: prev.members.map(m => m.id === memberId ? { ...m, personalInventory: newMemberInventory } : m),
-                logs: [`【分配】家族将 ${itemDetail?.name || '物品'} x${quantity} 赐予 ${member.name}。`, ...prev.logs].slice(0, 30)
+                logs: [newLogEntry, ...prev.logs].slice(0, 30),
+                unreadLogCount: (prev.unreadLogCount || 0) + 1
             };
         });
     };
@@ -243,9 +259,11 @@ const App: React.FC = () => {
                     ...prev,
                     members: prev.members.map(m => m.id === memberId ? { ...m, assignment: 'Idle' as TaskType } : m),
                     regions: prev.regions.map(r => r.id === region.id ? { ...r, activeMission: undefined, guardMemberId: undefined } : r),
-                    logs: [`【撤回】老祖降旨，命 ${member.name} 立即从 ${region.name} 撤回族中。`, ...prev.logs].slice(0, 30)
+                    logs: [{ id: `log_${Date.now()}_${Math.random()}`, text: `【撤回】老祖降旨，命 ${member.name} 立即从 ${region.name} 撤回族中。`, isNew: true }, ...prev.logs].slice(0, 30),
+                    unreadLogCount: (prev.unreadLogCount || 0) + 1
                 };
             });
+            setIsConsoleCollapsed(false);
             return;
         }
 
@@ -256,10 +274,18 @@ const App: React.FC = () => {
             const region = prev.regions.find(r => r.id === regionId);
             if (!member || !region) return prev;
 
+            // Identify the old guard if we are replacing them
+            let oldGuardId: string | null = null;
+            if (missionType === 'Guard') {
+                oldGuardId = region.guardMemberId || null;
+            }
+
             // Update member assignment
-            const updatedMembers = prev.members.map(m => 
-                m.id === memberId ? { ...m, assignment: 'Mission' as TaskType } : m
-            );
+            const updatedMembers = prev.members.map(m => {
+                if (m.id === memberId) return { ...m, assignment: 'Mission' as TaskType };
+                if (m.id === oldGuardId) return { ...m, assignment: 'Idle' as TaskType };
+                return m;
+            });
 
             // Update region
             const updatedRegions = prev.regions.map(r => {
@@ -289,12 +315,14 @@ const App: React.FC = () => {
                 ? `【驻守】${member.name} 领命坐镇 ${region.name}，保一方灵地。`
                 : `【派遣】${member.name} 领老祖法旨，前往 ${region.name} 执行任务。`;
 
+            setIsConsoleCollapsed(false);
             return {
                 ...prev,
                 members: updatedMembers,
                 regions: updatedRegions,
                 currentRegionId: '', 
-                logs: [logMsg, ...prev.logs].slice(0, 30)
+                logs: [{ id: `log_${Date.now()}_${Math.random()}`, text: logMsg, isNew: true }, ...prev.logs].slice(0, 30),
+                unreadLogCount: (prev.unreadLogCount || 0) + 1
             };
         });
     };
@@ -309,6 +337,7 @@ const App: React.FC = () => {
             const currentSeason = state.season;
             const nextSeason = currentSeason >= 4 ? 1 : currentSeason + 1;
             const isYearIncrement = currentSeason === 4;
+            setSkipReminders(false);
             const proficiencyGains: Record<string, { type: string, amount: number }> = {};
             let spiritStonesDelta = 50;
             let meritDelta = 2;
@@ -320,7 +349,10 @@ const App: React.FC = () => {
             // Helper to add item to clan inventory
             const addClanItem = (id: number, qty: number) => {
                 const detail = ALL_ITEM_DETAILS[id] as any;
-                if (!detail) return;
+                if (!detail) {
+                    console.warn(`[Inventory] Missing Item Detail for ID: ${id}`);
+                    return;
+                }
                 const cat = detail.category;
                 const catKey = cat === 'herb' ? 'herbs' :
                                cat === 'mineral' ? 'minerals' :
@@ -330,19 +362,20 @@ const App: React.FC = () => {
                                cat === 'paper' ? 'paper' : 'scrolls';
                 
                 if (catKey === 'paper') {
-                    newInventoryState.paper += qty;
+                    newInventoryState.paper = (newInventoryState.paper || 0) + qty;
                     return;
                 }
-                if (catKey === 'scrolls') return;
-                
-                const typedCat = catKey as 'herbs' | 'minerals' | 'pills' | 'weapons' | 'methods';
+
+                const typedCat = catKey as keyof Inventory;
+                if (typeof newInventoryState[typedCat] !== 'object') return;
 
                 if (!clonedCategories[typedCat]) {
                     clonedCategories[typedCat] = { ...(newInventoryState[typedCat] as Record<number, number>) };
                     (newInventoryState as any)[typedCat] = clonedCategories[typedCat];
                 }
-                const catObj = clonedCategories[typedCat]!;
+                const catObj = clonedCategories[typedCat] as Record<number, number>;
                 catObj[id] = (catObj[id] || 0) + qty;
+                console.log(`[Inventory] Added ${qty}x ${detail.name} (ID: ${id}) to Clan Warehouse.`);
             };
 
             const updatedBuildings = state.buildings.map(b => {
@@ -357,15 +390,23 @@ const App: React.FC = () => {
                 if (b.activeProduction) {
                     const rem = b.activeProduction.turnsRemaining - 1;
                     if (rem <= 0) {
-                        const recipe = [...RECIPES.Alchemy, ...RECIPES.Smithing].find(r => r.id === b.activeProduction!.recipeId);
-                        if (recipe) {
-                            addClanItem(recipe.productId, 1);
+                        if (b.activeProduction.type === 'Library') {
+                            const methodId = b.activeProduction.recipeId;
+                            addClanItem(methodId, 1);
+                            const detail = (ALL_ITEM_DETAILS as any)[methodId];
+                            turnLogs.push(`【${currentYear}载·功法】藏经阁拓印完成，《${detail?.name || '未知功法'}》抄本已入族库。`);
+                        } else {
+                            const recipe = [...RECIPES.Alchemy, ...RECIPES.Smithing].find(r => r.id === b.activeProduction!.recipeId);
+                            if (recipe) {
+                                const count = b.activeProduction.batchCount || 1;
+                                addClanItem(recipe.productId, count);
 
-                            const baseGain = recipe.grade === 0 ? 2 : recipe.grade * 10;
-                            const totalGain = baseGain * (recipe.turns || 1);
-                            const artisanType = b.activeProduction.type === 'Alchemy' ? '炼丹' : '炼器';
-                            if (b.assignedMemberId) proficiencyGains[b.assignedMemberId] = { type: artisanType, amount: (proficiencyGains[b.assignedMemberId]?.amount || 0) + totalGain };
-                            turnLogs.push(`【${currentYear}载·成品】${BUILDING_TYPES[b.type].name} 传来阵阵异响，已炼成重宝。`);
+                                const baseGain = recipe.grade === 0 ? 2 : recipe.grade * 10;
+                                const totalGain = baseGain * (recipe.turns || 1) * count;
+                                const artisanType = b.activeProduction.type === 'Alchemy' ? '炼丹' : '炼器';
+                                if (b.assignedMemberId) proficiencyGains[b.assignedMemberId] = { type: artisanType, amount: (proficiencyGains[b.assignedMemberId]?.amount || 0) + totalGain };
+                                turnLogs.push(`【${currentYear}载·成品】${BUILDING_TYPES[b.type].name} 传来阵阵异响，已炼成 ${count} 份重宝。`);
+                            }
                         }
                         return { ...b, activeProduction: undefined };
                     }
@@ -394,7 +435,7 @@ const App: React.FC = () => {
 
                 // 2. Handle steady yield for Occupied Resource/Stakeholder points with a Guardian
                 if (nr.owner === '望月李氏' && nr.id !== 'li_clan_home') {
-                    const guardian = state.members.find(m => m.id === nr.guardMemberId && m.status === 'healthy');
+                    const guardian = state.members.find(m => m.id === nr.guardMemberId && m.status === InjuryStatus.Healthy);
                     
                     if (guardian && nr.production) {
                         if (nr.production.stones) {
@@ -446,6 +487,8 @@ const App: React.FC = () => {
 
             if (Math.random() > 0.6) newEvents.push(EventController.generateNextEvent({ ...state, members: updatedMembers, regions: updatedRegions, buildings: updatedBuildings, inventory: newInventoryState }));
             
+            const newLogEntries = turnLogs.map(l => ({ id: `log_${Date.now()}_${Math.random()}`, text: l, isNew: true }));
+
             setState(prev => ({
                 ...prev,
                 year: isYearIncrement ? prev.year + 1 : prev.year,
@@ -456,9 +499,11 @@ const App: React.FC = () => {
                 spiritStones: prev.spiritStones + spiritStonesDelta,
                 merit: prev.merit + meritDelta,
                 inventory: newInventoryState,
-                logs: [...[...turnLogs].reverse(), ...prev.logs].slice(0, 40)
+                logs: newLogEntries.length > 0 ? [...[...newLogEntries].reverse(), ...prev.logs].slice(0, 40) : prev.logs,
+                unreadLogCount: (prev.unreadLogCount || 0) + newLogEntries.length
             }));
             if (newEvents.length > 0) setPendingEvents(newEvents);
+            if (turnLogs.length > 0) setIsConsoleCollapsed(false);
         } finally {
             setIsProcessing(false);
         }
@@ -466,9 +511,17 @@ const App: React.FC = () => {
 
     const handleChoice = (choiceKey: 'choiceA' | 'choiceB') => {
         if (pendingEvents.length === 0) return;
-        const updates = EventController.processEventChoice(state, pendingEvents[0], choiceKey);
-        setState(prev => ({ ...prev, ...updates }));
+        
+        setState(prev => {
+            const updates = EventController.processEventChoice(prev, pendingEvents[0], choiceKey);
+            return {
+                ...prev,
+                ...updates
+            };
+        });
+        
         setPendingEvents(prev => prev.slice(1));
+        setIsConsoleCollapsed(false);
     };
 
     const handleBreakthroughAttempt = (memberId: string, success: boolean, usedPillId?: number) => {
@@ -476,11 +529,14 @@ const App: React.FC = () => {
             const member = prev.members.find(m => m.id === memberId);
             if (!member) return prev;
             const { updatedMember, log } = CharacterController.breakthrough(member, success, prev.year, usedPillId);
+            const newLogEntry = { id: `log_${Date.now()}_${Math.random()}`, text: log, isNew: true };
+            setIsConsoleCollapsed(false);
             return {
                 ...prev,
                 members: prev.members.map(m => m.id === memberId ? updatedMember : m),
                 heritagePool: success ? prev.heritagePool + 10 : prev.heritagePool,
-                logs: [log, ...prev.logs].slice(0, 30)
+                logs: [newLogEntry, ...prev.logs].slice(0, 30),
+                unreadLogCount: (prev.unreadLogCount || 0) + 1
             };
         });
         setBreakingMemberId(null);
@@ -535,17 +591,61 @@ const App: React.FC = () => {
         .filter(m => m.family === '望月李氏')
         .reduce((max, m) => Math.max(max, REALM_ORDER.indexOf(m.realm)), 0);
 
+    const reminder = useMemo(() => {
+        if (skipReminders) return null;
+        
+        // 1. Breakthrough Check
+        const readyMember = state.members.find(m => {
+            if (m.family !== '望月李氏' || m.status === InjuryStatus.Dead || m.realm === Realm.Mortal) return false;
+            const realmIdx = REALM_ORDER.indexOf(m.realm);
+            const req = getRequiredExp(realmIdx, m.subRealm);
+            return m.subRealm === 9 && m.spiritPower >= req;
+        });
+        if (readyMember) return { type: 'Breakthrough', label: '突破', color: 'bg-blue-600', memberId: readyMember.id };
+
+        // 2. Dispatch Check
+        const unassignedResource = state.regions.find(r => 
+            r.owner === '望月李氏' && 
+            r.id !== 'li_clan_home' && 
+            !r.activeMission && 
+            !r.guardMemberId
+        );
+        if (unassignedResource) return { type: 'Dispatch', label: '派遣', color: 'bg-amber-600', regionId: unassignedResource.id };
+
+        return null;
+    }, [state.members, state.regions, skipReminders]);
+
+    const handleReminderAction = () => {
+        if (!reminder) return;
+        if (reminder.type === 'Breakthrough' && (reminder as any).memberId) {
+            setBreakingMemberId((reminder as any).memberId);
+            setIsDashboardVisible(true);
+        } else if (reminder.type === 'Dispatch' && (reminder as any).regionId) {
+            setState(p => ({ ...p, currentRegionId: (reminder as any).regionId }));
+            setIsMapOverview(false);
+            setIsManagementVisible(false);
+            setIsDashboardVisible(false);
+        } else {
+            setIsManagementVisible(false);
+            setIsDashboardVisible(false);
+            setIsMapOverview(false);
+            setState(p => ({ ...p, currentRegionId: '' }));
+        }
+    };
+
     return (
         <>
             <SpiritCursor />
             <CanvasBackground />
             <div 
-                className="game-canvas absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2" 
+                className="game-canvas absolute" 
                 style={{ 
                     width: '1920px', 
                     height: '1080px', 
+                    left: '50%',
+                    top: '50%',
                     transformOrigin: 'center center',
-                    transform: `translate(-50%, -50%) scale(${scale})` 
+                    transform: `translate3d(-50%, -50%, 0) scale(${scale})` 
                 }}
             >
                 <div className="h-full w-full relative bg-[#0a0f0d] text-text-main overflow-hidden select-none font-sans">
@@ -583,10 +683,12 @@ const App: React.FC = () => {
                                 <span className="text-[10px] uppercase tracking-widest text-text-disabled mb-1">功德造化</span>
                                 <span className="text-2xl font-bold text-blue-400 font-mono">💠 {state.merit}</span>
                             </div>
-                            <div className="flex flex-col">
-                                <span className="text-[10px] uppercase tracking-widest text-text-disabled mb-1">岁时纪元</span>
-                                <span className="text-2xl font-bold text-text-main tracking-widest">{state.year}载 · {SEASON_NAMES[state.season]}</span>
-                            </div>
+                             <div className="flex flex-col">
+                                 <span className="text-[10px] uppercase tracking-widest text-text-disabled mb-1">岁时纪元</span>
+                                 <div className="relative">
+                                     <span className="text-2xl font-bold text-text-main tracking-widest">{state.year}载 · {SEASON_NAMES[state.season]}</span>
+                                 </div>
+                             </div>
                         </div>
                     </div>
                     
@@ -596,7 +698,24 @@ const App: React.FC = () => {
                         </button>
                         <button onClick={() => setIsManagementVisible(true)} className="px-8 py-3 bg-bg-main/60 border border-border-soft text-text-muted rounded-sm font-bold hover:border-accent-jade hover:text-accent-jade transition-all flex items-center gap-2 text-base shadow-inner">🏛️ 家族管理</button>
                         <button onClick={() => setIsDashboardVisible(!isDashboardVisible)} className={`px-8 py-3 rounded-sm border transition-all font-bold flex items-center gap-2 text-base ${isDashboardVisible ? 'bg-accent-jade/20 border-accent-jade text-accent-jade' : 'bg-bg-main/60 border-border-soft text-text-disabled'}`}>📜 族谱常青</button>
-                        <button onClick={handleNextTurn} disabled={isProcessing || pendingEvents.length > 0} className="bg-accent-jade hover:brightness-110 disabled:opacity-30 text-bg-main px-12 py-3 rounded-sm font-black transition-all shadow-[0_0_30px_rgba(77,124,107,0.5)] text-lg tracking-widest ml-4">{isProcessing ? '推演因果' : '岁时轮转'}</button>
+                        <div className="flex items-center gap-1">
+                            <button 
+                                onClick={reminder ? handleReminderAction : handleNextTurn} 
+                                disabled={isProcessing || pendingEvents.length > 0} 
+                                className={`${reminder ? reminder.color : 'bg-accent-jade'} hover:brightness-110 disabled:opacity-30 text-bg-main px-12 py-3 rounded-sm font-black transition-all shadow-lg text-lg tracking-widest ml-1 animate-pulse-slow`}
+                            >
+                                {isProcessing ? '推演因果' : (reminder ? reminder.label : '岁时轮转')}
+                            </button>
+                            {reminder && (
+                                <button 
+                                    onClick={() => setSkipReminders(true)} 
+                                    title="忽略当前提醒"
+                                    className="h-12 w-10 flex items-center justify-center bg-gray-800/20 border border-white/10 rounded-sm text-gray-500 hover:text-white transition-all transform hover:scale-105 active:scale-95 ml-1 px-3"
+                                >
+                                    ⏩
+                                </button>
+                            )}
+                        </div>
                     </div>
                 </header>
                 
@@ -620,22 +739,46 @@ const App: React.FC = () => {
                 >
                     <div className="h-full bg-[#131c18]/90 backdrop-blur-xl border border-border-soft shadow-[0_20px_60px_rgba(0,0,0,0.9)] rounded-xl overflow-hidden flex flex-col ring-1 ring-white/5">
                         <div 
-                            className="flex justify-between items-center px-8 py-5 border-b border-white/5 bg-bg-main/40 shrink-0 cursor-pointer group hover:bg-bg-panel transition-all" 
+                            className="flex justify-between items-center px-8 py-5 border-b border-white/5 bg-bg-main/40 shrink-0 cursor-pointer group hover:bg-bg-panel transition-all relative" 
                             onClick={() => setIsConsoleCollapsed(!isConsoleCollapsed)}
                         >
                             <div className="flex items-center gap-4">
                                 <span className="text-xl">📜</span>
                                 <span className="font-serif font-bold text-accent-gold/90 group-hover:text-accent-gold transition-colors tracking-[0.4em] text-base">族史摘要</span>
+                                {state.unreadLogCount > 0 && (
+                                    <span className="absolute left-10 top-5 flex h-3 w-3">
+                                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                        <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                                    </span>
+                                )}
                             </div>
                             <span className={`text-xs text-accent-gold/60 transition-transform duration-500 ${isConsoleCollapsed ? '-rotate-180' : 'rotate-0'}`}>▼</span>
                         </div>
                         {!isConsoleCollapsed && (
                             <div className="flex-1 overflow-y-auto p-8 space-y-6 custom-scrollbar bg-gradient-to-b from-transparent to-black/30">
                                 {state.logs.map((log, i) => (
-                                    <div key={i} className="flex gap-5 border-b border-white/5 pb-5 animate-fade-in group" style={{animationDelay: `${i*0.05}s`}}>
-                                        <span className="text-accent-jade text-xl shrink-0 opacity-40 group-hover:opacity-100 transition-opacity">◈</span>
-                                        <p className="font-sans text-[15px] text-text-muted leading-relaxed tracking-wide group-hover:text-text-main transition-colors">
-                                            {log}
+                                    <div 
+                                        key={log.id} 
+                                        className={`flex gap-5 border-b border-white/5 pb-5 animate-fade-in group relative transition-colors ${log.isNew ? 'bg-accent-jade/5' : ''}`} 
+                                        style={{animationDelay: `${i*0.05}s`}}
+                                        onMouseEnter={() => {
+                                            if (log.isNew) {
+                                                setState(prev => ({
+                                                    ...prev,
+                                                    logs: prev.logs.map(l => l.id === log.id ? { ...l, isNew: false } : l),
+                                                    unreadLogCount: Math.max(0, prev.unreadLogCount - 1)
+                                                }));
+                                            }
+                                        }}
+                                    >
+                                        <div className="relative">
+                                            <span className={`${log.isNew ? 'text-accent-gold' : 'text-accent-jade'} text-xl shrink-0 opacity-40 group-hover:opacity-100 transition-opacity`}>◈</span>
+                                            {log.isNew && (
+                                                <span className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full"></span>
+                                            )}
+                                        </div>
+                                        <p className={`font-sans text-[15px] leading-relaxed tracking-wide transition-colors ${log.isNew ? 'text-white font-bold' : 'text-text-muted group-hover:text-text-main'}`}>
+                                            {log.text}
                                         </p>
                                     </div>
                                 ))}
@@ -656,11 +799,15 @@ const App: React.FC = () => {
                                     if (k === 'paper') {
                                         (newInv as any)[k] = u[k];
                                     } else {
-                                        (newInv as any)[k] = { ...(p.inventory[k] as object), ...(u[k] as object) };
+                                        // If the incoming update is an object, we should probably REPLACE if it's from a Tab that manages the whole category
+                                        // or MERGE if it's meant to be a partial update. 
+                                        // Alchemy/Smithing send the whole category object after consumption.
+                                        (newInv as any)[k] = { ...u[k] };
                                     }
                                 });
                                 return { ...p, inventory: newInv };
                             })}
+                            onUpdateSpiritStones={(amount) => setState(p => ({ ...p, spiritStones: amount }))}
                             onAddBuilding={(type) => {
                                 const id = `building_${Date.now()}`;
                                 const cost = BUILDING_TYPES[type].baseCost;
@@ -681,18 +828,47 @@ const App: React.FC = () => {
                                 }));
                             }}
                             onAssignBuilding={(bid, mid, sidx) => {
-                                setState(prev => ({
-                                    ...prev,
-                                    buildings: prev.buildings.map(b => {
-                                        if (b.id !== bid) return b;
-                                        if (sidx !== undefined) {
-                                            const ids = [...(b.assignedMemberIds || Array(12).fill(null))];
-                                            ids[sidx] = mid;
-                                            return { ...b, assignedMemberIds: ids };
+                                setState(prev => {
+                                    const building = prev.buildings.find(b => b.id === bid);
+                                    if (!building) return prev;
+
+                                    let newTaskType: TaskType = 'Idle';
+                                    if (mid) {
+                                        switch (building.type) {
+                                            case 'Library': newTaskType = 'Research'; break;
+                                            case 'AlchemyRoom': newTaskType = 'Alchemy'; break;
+                                            case 'Smithy': newTaskType = 'Smithing'; break;
+                                            case 'CultivationRoom': newTaskType = 'Cultivation'; break;
+                                            default: newTaskType = 'Idle';
                                         }
-                                        return { ...b, assignedMemberId: mid };
-                                    })
-                                }));
+                                    }
+
+                                    // Identify who is being removed
+                                    let removedMemberId: string | null = null;
+                                    if (sidx !== undefined) {
+                                        removedMemberId = building.assignedMemberIds?.[sidx] || null;
+                                    } else {
+                                        removedMemberId = building.assignedMemberId || null;
+                                    }
+
+                                    return {
+                                        ...prev,
+                                        members: prev.members.map(m => {
+                                            if (m.id === mid) return { ...m, assignment: newTaskType };
+                                            if (m.id === removedMemberId) return { ...m, assignment: 'Idle' as TaskType };
+                                            return m;
+                                        }),
+                                        buildings: prev.buildings.map(b => {
+                                            if (b.id !== bid) return b;
+                                            if (sidx !== undefined) {
+                                                const ids = [...(b.assignedMemberIds || Array(12).fill(null))];
+                                                ids[sidx] = mid;
+                                                return { ...b, assignedMemberIds: ids };
+                                            }
+                                            return { ...b, assignedMemberId: mid };
+                                        })
+                                    };
+                                });
                             }} 
                             onAssignItem={handleAssignItem}
                             onClose={() => setIsManagementVisible(false)} 

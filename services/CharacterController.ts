@@ -1,4 +1,4 @@
-import { ClanMember, Realm, RootGrade, TaskType } from '../types';
+import { ClanMember, Realm, RootGrade, TaskType, InjuryStatus } from '../types';
 import { REALM_ORDER, TASK_INFO } from '../constants';
 import { calculateQuarterlyExpGain, getRequiredExp } from '../components/Xiulian/CultivationSystem';
 
@@ -58,30 +58,53 @@ export class CharacterController {
         let nm = { ...member };
         let turnLogs: string[] = [];
 
-        if (nm.status === 'dead') return { updatedMember: nm, logs: [] };
+        if (nm.status === InjuryStatus.Dead) return { updatedMember: nm, logs: [] };
 
-        // 1. 寿命增长
+        // 1. 寿命增长与伤病情报处理
         if (isYearIncrement) {
             nm.age += 1;
-            if (nm.age >= nm.maxAge) {
-                nm.status = 'dead';
-                nm.deathYear = year;
-                turnLogs.push(`【${year}载·春】${nm.name} 寿元耗尽，溘然长逝。`);
-                return { updatedMember: nm, logs: turnLogs };
+        }
+
+        // 2. 濒死、道基破损扣除最大寿命 (每回合扣除)
+        if (nm.status === InjuryStatus.Dying || nm.status === InjuryStatus.FoundationBroken) {
+            const loss = 2; // 每次扣2点最大寿命
+            nm.maxAge -= loss;
+            if (nm.status === InjuryStatus.Dying) {
+                nm.maxAgeLost = (nm.maxAgeLost || 0) + loss;
             }
         }
 
-        // 2. 伤势康复逻辑
-        if (nm.status === 'injured') {
+        // 死亡判定
+        if (nm.age >= nm.maxAge) {
+            nm.status = InjuryStatus.Dead;
+            nm.deathYear = year;
+            turnLogs.push(`【${year}载】${nm.name} 寿元耗尽，溘然长逝。`);
+            return { updatedMember: nm, logs: turnLogs };
+        }
+
+        // 3. 伤势康复逻辑
+        const randomRecover = Math.random();
+        if (nm.status === InjuryStatus.Heavy) {
             nm.assignment = 'Recovery';
-            if (Math.random() > 0.4) {
-                nm.status = 'healthy';
-                nm.assignment = 'Idle'; 
-                turnLogs.push(`【${year}载】${nm.name} 伤势痊愈，重回家族待命。`);
+            if (randomRecover > 0.8) {
+                nm.status = InjuryStatus.Light;
+                turnLogs.push(`【${year}载】${nm.name} 伤势有所好转，从重伤转为轻伤。`);
             }
+        } else if (nm.status === InjuryStatus.Light) {
+            nm.assignment = 'Recovery';
+            if (randomRecover > 0.7) {
+                nm.status = InjuryStatus.Healthy;
+                nm.assignment = 'Idle'; 
+                turnLogs.push(`【${year}载】${nm.name} 伤势大见起色，身体已完全康复。`);
+            }
+        } else if (nm.status === InjuryStatus.Healthy) {
+            // Already healthy, do nothing for recovery
+        } else {
+            // Dying or FoundationBroken: Only recoverable by pills (not here)
+            nm.assignment = 'Recovery';
         }
 
-        // 3. 修为增长逻辑
+        // 4. 修为增长逻辑
         const hasRoots = Object.values(nm.roots).some(v => v > 0);
         if (hasRoots && nm.realm !== Realm.Mortal) {
             // 首先计算基于当前属性和功法的理论产出
@@ -103,7 +126,7 @@ export class CharacterController {
         }
 
         // 4. 游历触发概率
-        const travelTriggered = nm.status === 'healthy' && nm.assignment === 'Cultivation' && Math.random() < 0.05;
+        const travelTriggered = nm.status === InjuryStatus.Healthy && nm.assignment === 'Cultivation' && Math.random() < 0.05;
 
         return { updatedMember: nm, logs: turnLogs, travelTriggered };
     }
@@ -165,7 +188,7 @@ export class CharacterController {
                     ...nm,
                     subRealm: 8,
                     spiritPower: 0,
-                    status: 'injured',
+                    status: InjuryStatus.Light,
                     assignment: 'Recovery'
                 },
                 log: `【${year}载·突破】${nm.name} 叩问天门失败，遭灵力反噬，修为跌落。`

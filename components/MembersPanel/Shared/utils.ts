@@ -205,3 +205,37 @@ export const getElementName = (key: string) => {
         default: return key;
     }
 };
+
+/**
+ * 获取成员的当前状态显示标签和颜色
+ */
+export const getStatusLabel = (member: ClanMember, state: GameState) => {
+    const taskDetails = TASK_INFO[member.assignment];
+
+    // Check building assignments
+    const building = state.buildings.find(b => b.assignedMemberId === member.id);
+    if (building) {
+        if (building.type === 'Library') return { label: '守阁长老', color: 'text-purple-400' };
+        if (building.type === 'AlchemyRoom') return { label: '炼丹堂主', color: 'text-pink-400' };
+        if (building.type === 'Smithy') return { label: '炼器坊主', color: 'text-cyan-400' };
+    }
+    
+    // Check if assigned to a slot in CultivationRoom
+    const inCultivationRoom = state.buildings.some(b => 
+        b.type === 'CultivationRoom' && b.assignedMemberIds?.includes(member.id)
+    );
+    if (inCultivationRoom) return { label: '闭关修炼', color: 'text-blue-200' };
+
+    // Check if assigned as a guard
+    const guardedRegion = state.regions.find(r => r.guardMemberId === member.id);
+    if (guardedRegion) return { label: `驻守·${guardedRegion.name}`, color: 'text-orange-300' };
+
+    // Check if on active mission
+    const activeMissionRegion = state.regions.find(r => r.activeMission?.memberId === member.id);
+    if (activeMissionRegion) return { label: `执行·${activeMissionRegion.activeMission?.type || '任务'}`, color: 'text-orange-400' };
+
+    return {
+        label: taskDetails?.label || member.assignment,
+        color: taskDetails?.color || "text-text-main"
+    };
+};

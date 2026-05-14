@@ -65,12 +65,15 @@ const CanvasSpiritBar: React.FC<Props> = ({ progress, level, color, glowColor, h
             const targetProgress = stateRef.current.progress;
 
             let isAnimating = false;
+            const isAdvancing = displayLevelRef.current < targetLevel;
+            // A major advancement happens at the peak level of a realm (e.g., level 10, 20, 30...)
+            const isMajorAdvancing = isAdvancing && displayLevelRef.current > 0 && displayLevelRef.current % 10 === 0;
+            const isRegressing = displayLevelRef.current > targetLevel || (displayLevelRef.current === targetLevel && displayProgressRef.current > targetProgress + 0.05);
 
-            // Handle multi-level transition logic
-            if (displayLevelRef.current < targetLevel) {
+            if (isAdvancing) {
                 isAnimating = true;
-                // Moving up to next level: fill current bar first
-                displayProgressRef.current += 0.02; // Smooth fill to 100%
+                // Slowed down advancement speed
+                displayProgressRef.current += 0.02; 
                 if (displayProgressRef.current >= 1) {
                     displayProgressRef.current = 0;
                     displayLevelRef.current += 1;
@@ -79,11 +82,15 @@ const CanvasSpiritBar: React.FC<Props> = ({ progress, level, color, glowColor, h
                     }
                 }
             } else if (displayLevelRef.current > targetLevel) {
-                // Level decreased (e.g. breakthrough or fail)
-                displayLevelRef.current = targetLevel;
-                displayProgressRef.current = targetProgress;
-                if (callbacksRef.current.onLevelChange) {
-                    callbacksRef.current.onLevelChange(displayLevelRef.current);
+                isAnimating = true;
+                // Regression animation
+                displayProgressRef.current -= 0.02; 
+                if (displayProgressRef.current <= 0) {
+                    displayProgressRef.current = 1;
+                    displayLevelRef.current -= 1;
+                    if (callbacksRef.current.onLevelChange) {
+                        callbacksRef.current.onLevelChange(displayLevelRef.current);
+                    }
                 }
             } else {
                 // Same level: lerp to target progress
@@ -113,7 +120,7 @@ const CanvasSpiritBar: React.FC<Props> = ({ progress, level, color, glowColor, h
             ctx.clearRect(0, 0, width, h);
             
             // Background
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+            ctx.fillStyle = isRegressing ? 'rgba(50, 0, 0, 0.6)' : 'rgba(0, 0, 0, 0.5)';
             ctx.fillRect(0, 0, width, h);
 
             if (displayProgressRef.current > 0) {
@@ -122,20 +129,30 @@ const CanvasSpiritBar: React.FC<Props> = ({ progress, level, color, glowColor, h
 
                 // Main bar
                 const gradient = ctx.createLinearGradient(0, 0, barWidth, 0);
-                gradient.addColorStop(0, color);
-                gradient.addColorStop(1, glowColor);
+                if (isRegressing) {
+                    // During regression, use a more warning-like color scheme
+                    gradient.addColorStop(0, '#991b1b'); // red-800
+                    gradient.addColorStop(1, '#ef4444'); // red-500
+                } else if (isMajorAdvancing) {
+                    // Breakthrough success burst: Golden!
+                    gradient.addColorStop(0, '#fbbf24'); // yellow-400
+                    gradient.addColorStop(1, '#f59e0b'); // amber-500
+                } else {
+                    gradient.addColorStop(0, color);
+                    gradient.addColorStop(1, glowColor);
+                }
                 
                 ctx.fillStyle = gradient;
                 ctx.fillRect(0, 0, barWidth, h);
 
                 // Flow effect
-                offset += 1.5;
+                offset += isRegressing ? -2 : (isMajorAdvancing ? 3 : 1.5); // Faster flow for major breakthrough
                 ctx.save();
                 ctx.beginPath();
                 ctx.rect(0, 0, barWidth, h);
                 ctx.clip();
 
-                ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+                ctx.strokeStyle = isRegressing ? 'rgba(255, 0, 0, 0.3)' : (isMajorAdvancing ? 'rgba(255, 255, 255, 0.5)' : 'rgba(255, 255, 255, 0.2)');
                 ctx.lineWidth = 4;
                 ctx.setLineDash([20, 40]);
                 ctx.lineDashOffset = -offset;
@@ -148,19 +165,18 @@ const CanvasSpiritBar: React.FC<Props> = ({ progress, level, color, glowColor, h
 
                 // Glow at the end
                 if (displayProgressRef.current < 1) {
-                    ctx.shadowBlur = 15;
-                    ctx.shadowColor = glowColor;
+                    ctx.shadowBlur = isMajorAdvancing ? 25 : 15;
+                    ctx.shadowColor = isMajorAdvancing ? '#fbbf24' : glowColor;
                     ctx.fillStyle = '#fff';
                     ctx.fillRect(barWidth - 2, 0, 2, h);
                 } else {
-                    // Full state: highlight the end brightly to show completeness
-                    ctx.shadowBlur = 20;
-                    ctx.shadowColor = glowColor;
+                    // Full state
+                    ctx.shadowBlur = isMajorAdvancing ? 30 : 20;
+                    ctx.shadowColor = isMajorAdvancing ? '#fbbf24' : glowColor;
                     ctx.fillStyle = '#fff';
                     ctx.fillRect(width - 2, 0, 2, h);
                     
-                    // Add an extra overlay for "Full" intensity
-                    ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
+                    ctx.fillStyle = isMajorAdvancing ? 'rgba(251, 191, 36, 0.4)' : 'rgba(255, 255, 255, 0.2)';
                     ctx.fillRect(0, 0, width, h);
                 }
             }

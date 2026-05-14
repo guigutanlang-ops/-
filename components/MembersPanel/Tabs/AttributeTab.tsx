@@ -1,6 +1,6 @@
 import React from 'react';
-import { GameState, ClanMember, TaskType, Realm } from '../../../types';
-import { getTierColor, getRootGradeColor, getElementColorClass, getElementName, calculateMemberMultiplier } from '../Shared/utils';
+import { GameState, ClanMember, Realm, InjuryStatus } from '../../../types';
+import { getTierColor, getRootGradeColor, getElementColorClass, getElementName, calculateMemberMultiplier, getStatusLabel } from '../Shared/utils';
 import { TASK_INFO, ASPIRATIONS, REALM_ORDER } from '../../../constants';
 import { getRequiredExp } from '../../Xiulian/CultivationSystem';
 import CanvasSpiritBar from '../../Shared/CanvasSpiritBar';
@@ -16,6 +16,8 @@ const AttributeTab: React.FC<Props> = ({ member, state, showPhysiqueTooltip, hid
     const totalMultiplier = calculateMemberMultiplier(member, state);
     const aspirationInfo = ASPIRATIONS[member.aspiration] || ASPIRATIONS['Unset'];
     const taskDetails = TASK_INFO[member.assignment];
+
+    const statusDisplay = getStatusLabel(member, state);
 
     const [displaySubRealm, setDisplaySubRealm] = React.useState(member.subRealm);
     const [showPromotion, setShowPromotion] = React.useState(false);
@@ -79,16 +81,9 @@ const AttributeTab: React.FC<Props> = ({ member, state, showPhysiqueTooltip, hid
                             </div>
                         )}
                         <InfoRow label="性别" value={member.gender} valueClass="text-gray-300" />
-                        <InfoRow label="寿元" value={`${member.age} / ${member.maxAge} 载`} valueClass={member.maxAge - member.age < 10 ? 'text-red-400' : 'text-gray-300'} />
-                        <InfoRow label="家族" value={member.family} valueClass="text-gray-300"/>
                         <InfoRow label="宗门" value={member.sect} valueClass="text-gray-300"/>
                         <InfoRow label="职位" value={member.position} valueClass="text-gray-300" />
                         <InfoRow label="贡献点" value={member.contributionPoints} valueClass="text-gray-300"/>
-                        <InfoRow 
-                            label="状态" 
-                            value={taskDetails?.label || member.assignment} 
-                            valueClass={taskDetails?.color || "text-text-main"}
-                        />
                     </div>
                 </section>
 

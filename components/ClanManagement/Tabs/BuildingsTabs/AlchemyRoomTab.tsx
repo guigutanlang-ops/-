@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
-import { ClanMember, Building, Realm, Inventory } from '../../../../types';
+import { ClanMember, Building, Realm, Inventory, InjuryStatus } from '../../../../types';
 import { getArtisanTitle, REALM_ORDER, RECIPES, ALL_ITEM_DETAILS } from '../../../../constants';
 import { getGradeStyle } from '../../../MembersPanel/Shared/utils';
 import { renderItemContent } from '../../../Shared/TooltipRenderers';
@@ -13,19 +13,35 @@ interface Props {
     onAssignBuilding: (buildingId: string, memberId: string | null) => void;
     onUpdateBuilding: (id: string, updates: Partial<Building>) => void;
     onUpdateInventory: (updates: Partial<Inventory>) => void;
+    onUpdateMember: (id: string, updates: Partial<ClanMember>) => void;
     showTooltip: (e: React.MouseEvent, content: React.ReactNode) => void;
     hideTooltip: () => void;
 }
 
-const AlchemyRoomTab: React.FC<Props> = ({ building, members, inventory, alreadyAssignedIds, onAssignBuilding, onUpdateBuilding, onUpdateInventory, showTooltip, hideTooltip }) => {
+const AlchemyRoomTab: React.FC<Props> = ({ building, members, inventory, alreadyAssignedIds, onAssignBuilding, onUpdateBuilding, onUpdateInventory, onUpdateMember, showTooltip, hideTooltip }) => {
     const [selectedRecipeId, setSelectedRecipeId] = useState<number | null>(null);
+    const [batchCount, setBatchCount] = useState<number>(1);
 
-    const aliveMembers = members.filter(m => m.status !== 'dead' && m.family === '望月李氏');
+    const [activeRightTab, setActiveRightTab] = useState<'recipes' | 'materials'>('recipes');
+
+    const aliveMembers = members.filter(m => m.status !== InjuryStatus.Dead && m.family === '望月李氏');
     const assignedAlchemist = aliveMembers.find(m => m.id === building.assignedMemberId);
 
-    const availableRecipes = useMemo(() => {
-        return RECIPES.Alchemy.filter(r => (inventory.scrolls[r.id] || 0) > 0);
-    }, [inventory.scrolls]);
+    const recipeGroups = useMemo(() => {
+        const clanRecipes = RECIPES.Alchemy.filter(r => (inventory.scrolls[r.id] || 0) > 0).map(r => ({ ...r, source: '家族' as const, canUse: true }));
+        const masterRecipes = assignedAlchemist ? RECIPES.Alchemy.filter(r => (assignedAlchemist.personalInventory.scrolls[r.id] || 0) > 0 && !clanRecipes.some(cr => cr.id === r.id)).map(r => ({ ...r, source: '堂主' as const, canUse: true })) : [];
+        const otherRecipes = aliveMembers.filter(m => m.id !== building.assignedMemberId).flatMap(m => 
+            RECIPES.Alchemy.filter(r => (m.personalInventory.scrolls[r.id] || 0) > 0 && !clanRecipes.some(cr => cr.id === r.id) && !masterRecipes.some(mr => mr.id === r.id))
+        ).map(r => ({ ...r, source: '其他族人' as const, canUse: false }));
+        
+        return {
+            clan: clanRecipes,
+            master: masterRecipes,
+            others: otherRecipes
+        };
+    }, [inventory.scrolls, assignedAlchemist, aliveMembers, building.assignedMemberId]);
+
+    const availableRecipesCount = recipeGroups.clan.length + recipeGroups.master.length + recipeGroups.others.length;
 
     const selectedRecipe = useMemo(() => {
         return RECIPES.Alchemy.find(r => r.id === selectedRecipeId);
@@ -55,42 +71,93 @@ const AlchemyRoomTab: React.FC<Props> = ({ building, members, inventory, already
         return rank >= selectedRecipe.grade;
     }, [assignedAlchemist, selectedRecipe]);
 
-    const checkResources = (recipe: any) => {
+    const getHerbQty = (id: number) => {
+        const clanQty = inventory.herbs[id] || 0;
+        const masterQty = assignedAlchemist?.personalInventory.herbs[id] || 0;
+        return { clanQty, masterQty, total: clanQty + masterQty };
+    };
+
+    const checkResources = (recipe: any, count: number = 1) => {
         return Object.entries(recipe.cost).every(([id, qty]) => {
-            return (inventory.herbs[parseInt(id)] || 0) >= (qty as number);
+            const { total } = getHerbQty(parseInt(id));
+            return total >= (qty as number) * count;
         });
     };
 
-    // 计算预期熟练度收益
-    const getExpectedProficiency = (recipe: any) => {
-        const base = recipe.grade === 0 ? 2 : recipe.grade * 10;
-        return base * (recipe.turns || 1);
+    const renderRecipeCard = (r: any) => {
+        const style = getGradeStyle(r.grade);
+        const isFocused = selectedRecipeId === r.id;
+        const isDisabled = !!building.activeProduction || !r.canUse;
+        
+        return (
+            <div 
+                key={r.id}
+                onClick={(e) => { e.stopPropagation(); !isDisabled && setSelectedRecipeId(isFocused ? null : r.id); setBatchCount(1); }}
+                onMouseEnter={(e) => showTooltip(e, renderItemContent(r.id))}
+                onMouseLeave={hideTooltip}
+                className={`${style.bg} border-2 ${isFocused ? 'border-yellow-500 scale-[1.02] shadow-[0_0_20px_rgba(234,179,8,0.2)]' : style.border} p-3 rounded-lg flex flex-col items-center group transition-all aspect-[4/5] justify-between shadow-lg relative overflow-hidden ${isDisabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer hover:brightness-110'}`}
+            >
+                <div className={`text-3xl mt-2 group-hover:scale-110 transition-transform ${style.shadow}`}>📜</div>
+                <span className={`text-[11px] font-bold text-center truncate w-full mt-2 px-1 ${style.text} ${style.shadow}`}>{r.name}</span>
+                <div className="absolute top-1 right-1">
+                    <span className={`text-[7px] font-bold px-1 rounded-sm border ${style.border} ${style.text} bg-black/60`}>{r.grade === 0 ? '凡品' : r.grade + '品'}</span>
+                </div>
+                <div className="mt-auto flex flex-col items-center">
+                    <span className="text-[9px] text-pink-500/50 font-bold uppercase tracking-widest leading-tight">丹方</span>
+                    {!r.canUse && <span className="text-[8px] text-red-500/80 font-bold mt-0.5 animate-pulse">不可用</span>}
+                </div>
+            </div>
+        );
     };
 
     const handleStartAlchemy = () => {
-        if (!selectedRecipe || !assignedAlchemist) return;
-        if (!checkResources(selectedRecipe)) return;
+        const recipeToStart = recipeGroups.clan.find(r => r.id === selectedRecipeId) || recipeGroups.master.find(r => r.id === selectedRecipeId);
+        if (!recipeToStart || !assignedAlchemist) return;
+        if (!checkResources(recipeToStart, batchCount)) return;
 
-        const newHerbs = { ...inventory.herbs };
-        Object.entries(selectedRecipe.cost).forEach(([id, qty]) => {
+        const newClanHerbs = { ...inventory.herbs };
+        const newMasterHerbs = { ...assignedAlchemist.personalInventory.herbs };
+
+        Object.entries(recipeToStart.cost).forEach(([id, qty]) => {
             const itemId = parseInt(id);
-            newHerbs[itemId] -= (qty as number);
-            if (newHerbs[itemId] <= 0) delete newHerbs[itemId];
+            let needed = (qty as number) * batchCount;
+
+            const clanAvailable = newClanHerbs[itemId] || 0;
+            if (clanAvailable >= needed) {
+                newClanHerbs[itemId] -= needed;
+                needed = 0;
+            } else {
+                newClanHerbs[itemId] = 0;
+                needed -= clanAvailable;
+                newMasterHerbs[itemId] = (newMasterHerbs[itemId] || 0) - needed;
+            }
+
+            if (newClanHerbs[itemId] === 0) delete newClanHerbs[itemId];
+            if (newMasterHerbs[itemId] === 0) delete newMasterHerbs[itemId];
         });
 
-        onUpdateInventory({ herbs: newHerbs });
+        onUpdateInventory({ herbs: newClanHerbs });
+        onUpdateMember(assignedAlchemist.id, { 
+            personalInventory: { ...assignedAlchemist.personalInventory, herbs: newMasterHerbs } 
+        });
+
         onUpdateBuilding(building.id, {
             activeProduction: {
-                recipeId: selectedRecipe.id,
-                turnsRemaining: (selectedRecipe as any).turns || 1,
+                recipeId: recipeToStart.id,
+                turnsRemaining: ((recipeToStart as any).turns || 1) * batchCount,
+                batchCount: batchCount,
                 type: 'Alchemy'
             }
         });
         setSelectedRecipeId(null);
+        setBatchCount(1);
     };
 
-    const handleCancelAlchemy = () => {
+    const [isAbortConfirmVisible, setIsAbortConfirmVisible] = useState(false);
+
+    const handleAbortAlchemy = () => {
         onUpdateBuilding(building.id, { activeProduction: undefined });
+        setIsAbortConfirmVisible(false);
     };
 
     const currentProductionRecipe = building.activeProduction 
@@ -104,7 +171,7 @@ const AlchemyRoomTab: React.FC<Props> = ({ building, members, inventory, already
                 <h3 className="text-pink-600 font-bold text-lg mb-6 flex items-center gap-2"><span>⚗️</span> 丹鼎堂</h3>
                 <div className="bg-[#1a1215] p-5 rounded border border-pink-900/30 mb-6">
                     <div className="flex justify-between items-center mb-6">
-                        <p className="text-gray-500 text-[11px] font-bold uppercase tracking-widest shrink-0 mr-4">当前堂主</p>
+                        <p className="text-gray-500 text-[11px] font-bold uppercase tracking-widest shrink-0 mr-4">炼丹堂主</p>
                         <select className="bg-[#2c1810] border border-yellow-900/40 px-2 py-1 rounded text-yellow-500 outline-none text-[10px] font-bold min-w-[120px] shadow-sm hover:border-yellow-600 transition-colors" 
                             onChange={(e) => onAssignBuilding(building.id, e.target.value || null)} 
                             value={building.assignedMemberId || ''}>
@@ -137,70 +204,178 @@ const AlchemyRoomTab: React.FC<Props> = ({ building, members, inventory, already
                 </div>
 
                 {building.activeProduction ? (
-                    <div className="bg-pink-900/10 border border-pink-500/20 p-4 ">
+                    <div className="bg-pink-900/10 border border-pink-500/20 p-4 mb-6">
                         <div className="flex justify-between items-center mb-2">
-                            <span className="text-pink-400 text-[11px] font-bold">炼制中...</span>
+                            <span className="text-pink-400 text-[11px] font-bold">炼制中... (共 {building.activeProduction.batchCount || 1} 次)</span>
                             <span className="text-gray-500 text-[10px] font-mono">余 {building.activeProduction.turnsRemaining} 岁时</span>
                         </div>
                         <p className="text-yellow-100 font-bold text-sm mb-3">
                             {currentProductionRecipe?.name.replace('丹方', '')}
                         </p>
-                        <button 
-                            onClick={handleCancelAlchemy}
-                            className="w-full py-2 bg-red-900/20 border border-red-900/40 text-red-500 text-[10px] font-bold rounded hover:bg-red-900/40 transition-all"
-                        >
-                            废止炼制
-                        </button>
+                        <div className="flex gap-2">
+                            <button 
+                                onClick={() => setIsAbortConfirmVisible(true)}
+                                className="flex-1 py-2 bg-red-900/20 border border-red-900/40 text-red-500 text-[10px] font-bold rounded hover:bg-red-900/40 transition-all font-black tracking-widest"
+                            >
+                                中止炼制
+                            </button>
+                        </div>
                     </div>
                 ) : (
-                    <div className="text-center py-6 border border-dashed border-white/5 rounded">
+                    <div className="text-center py-6 border border-dashed border-white/5 rounded mb-6">
                         <p className="text-gray-600 text-[11px] italic">丹炉待机中</p>
                     </div>
                 )}
+
+                {/* 库存概览 */}
+                <div className="mt-auto pt-6 border-t border-pink-900/20">
+                    <div className="flex justify-between items-center mb-3">
+                        <h4 className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">核心药材库存</h4>
+                        <span className="text-[9px] text-pink-600 font-mono">库 / 主</span>
+                    </div>
+                    <div className="space-y-2 max-h-[200px] overflow-y-auto custom-scrollbar pr-1">
+                        {RECIPES.Alchemy.flatMap(r => Object.keys(r.cost)).filter((v, i, a) => a.indexOf(v) === i).map(idStr => {
+                            const id = parseInt(idStr);
+                            const { clanQty, masterQty, total } = getHerbQty(id);
+                            if (total === 0) return null;
+                            const detail = ALL_ITEM_DETAILS[id] as any;
+                            return (
+                                <div key={id} className="flex justify-between items-center text-[11px] group">
+                                    <span className="text-gray-400 group-hover:text-yellow-500 transition-colors">{detail?.name || '未知'}</span>
+                                    <div className="flex gap-2 font-mono">
+                                        <span className="text-emerald-600/80">{clanQty}</span>
+                                        <span className="text-gray-600">/</span>
+                                        <span className="text-blue-600/80">{masterQty}</span>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                        {RECIPES.Alchemy.flatMap(r => Object.keys(r.cost)).filter((v, i, a) => a.indexOf(v) === i).every(id => getHerbQty(parseInt(id)).total === 0) && (
+                            <p className="text-center py-4 text-gray-700 text-[10px] italic">暂无相关药材</p>
+                        )}
+                    </div>
+                </div>
             </div>
+
+            {/* 中止确认弹窗 */}
+            {isAbortConfirmVisible && (
+                <div className="fixed inset-0 z-[110] bg-black/90 backdrop-blur-md flex items-center justify-center p-4">
+                    <div className="bg-[#1a1215] border-2 border-red-900/40 p-8 rounded shadow-2xl max-w-xs w-full text-center">
+                        <p className="text-red-500 font-bold mb-6">确定要中止当前的炼制吗？</p>
+                        <p className="text-gray-500 text-xs mb-8">中止后将立即结束本次炼制，未完成的部分将不会产出且投入的药材无法收回。</p>
+                        <div className="flex gap-4">
+                            <button onClick={() => setIsAbortConfirmVisible(false)} className="flex-1 py-2 bg-gray-800 text-gray-400 rounded text-xs">取消</button>
+                            <button onClick={handleAbortAlchemy} className="flex-1 py-2 bg-red-900 text-red-100 rounded text-xs font-bold">确定中止</button>
+                        </div>
+                    </div>
+                </div>
+            )}
             
-            {/* 右侧：丹方库 */}
-            <div className="flex-1 bg-black/40 border border-white/5 rounded-xl p-6 flex flex-col overflow-hidden" onClick={() => setSelectedRecipeId(null)}>
-                <div className="flex justify-between items-center mb-6 border-b border-white/5 pb-3">
-                    <h4 className="text-pink-500 text-sm font-bold flex items-center gap-2">
-                        <span>📜</span> 家族炼丹配方
-                    </h4>
-                    <span className="text-[10px] text-gray-500 font-mono">已掌握：{availableRecipes.length} 卷</span>
+            {/* 右侧：丹方库与物产 */}
+            <div className="flex-1 bg-black/40 border border-white/5 rounded-xl flex flex-col overflow-hidden" onClick={() => { setSelectedRecipeId(null); setBatchCount(1); }}>
+                <div className="flex justify-between items-center px-6 pt-4 border-b border-white/5">
+                    <div className="flex gap-6">
+                        <button 
+                            onClick={(e) => { e.stopPropagation(); setActiveRightTab('recipes'); }}
+                            className={`pb-3 text-sm font-bold transition-all border-b-2 ${activeRightTab === 'recipes' ? 'text-pink-500 border-pink-500' : 'text-gray-600 border-transparent hover:text-gray-400'}`}
+                        >
+                            丹方秘卷
+                        </button>
+                        <button 
+                            onClick={(e) => { e.stopPropagation(); setActiveRightTab('materials'); }}
+                            className={`pb-3 text-sm font-bold transition-all border-b-2 ${activeRightTab === 'materials' ? 'text-pink-500 border-pink-500' : 'text-gray-600 border-transparent hover:text-gray-400'}`}
+                        >
+                            药材宝库
+                        </button>
+                    </div>
                 </div>
 
-                <div className="flex-1 overflow-y-auto custom-scrollbar">
-                    {availableRecipes.length > 0 ? (
-                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 px-1">
-                            {availableRecipes.map(r => {
-                                const style = getGradeStyle(r.grade);
-                                const isFocused = selectedRecipeId === r.id;
-                                const isDisabled = !!building.activeProduction;
-                                
-                                return (
-                                    <div key={r.id} className="flex flex-col gap-2">
-                                        <div 
-                                            onClick={(e) => { e.stopPropagation(); !isDisabled && setSelectedRecipeId(isFocused ? null : r.id); }}
-                                            onMouseEnter={(e) => showTooltip(e, renderItemContent(r.id))}
-                                            onMouseLeave={hideTooltip}
-                                            className={`${style.bg} border-2 ${isFocused ? 'border-yellow-500 scale-[1.02] shadow-[0_0_20px_rgba(234,179,8,0.2)]' : style.border} p-3 rounded-lg flex flex-col items-center group transition-all aspect-[4/5] justify-between shadow-lg relative overflow-hidden ${isDisabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer hover:brightness-110'}`}
-                                        >
-                                            <div className={`text-3xl mt-2 group-hover:scale-110 transition-transform ${style.shadow}`}>📜</div>
-                                            <span className={`text-[11px] font-bold text-center truncate w-full mt-2 px-1 ${style.text} ${style.shadow}`}>{r.name}</span>
-                                            <div className="absolute top-1 right-1">
-                                                <span className={`text-[7px] font-bold px-1 rounded-sm border ${style.border} ${style.text} bg-black/60`}>{r.grade === 0 ? '凡品' : r.grade + '品'}</span>
-                                            </div>
-                                            <div className="mt-auto">
-                                                <span className="text-[9px] text-pink-500/50 font-bold uppercase tracking-widest">炼丹配方</span>
-                                            </div>
-                                        </div>
+                <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
+                    {activeRightTab === 'recipes' ? (
+                        <div className="space-y-8">
+                            {/* 族库丹方 */}
+                            {recipeGroups.clan.length > 0 && (
+                                <div>
+                                    <h5 className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-4 flex items-center gap-2">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+                                        家族公有 (族库)
+                                    </h5>
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4">
+                                        {recipeGroups.clan.map(r => renderRecipeCard(r))}
                                     </div>
-                                );
-                            })}
+                                </div>
+                            )}
+
+                            {/* 堂主丹方 */}
+                            {recipeGroups.master.length > 0 && (
+                                <div>
+                                    <h5 className="text-[10px] text-gray-500 font-bold uppercase tracking-widest mb-4 flex items-center gap-2">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-blue-500"></div>
+                                        堂主私藏 (携带)
+                                    </h5>
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4">
+                                        {recipeGroups.master.map(r => renderRecipeCard(r))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* 其他族人 (不可直接炼制) */}
+                            {recipeGroups.others.length > 0 && (
+                                <div>
+                                    <h5 className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-4 flex items-center gap-2">
+                                        <div className="w-1.5 h-1.5 rounded-full bg-gray-600"></div>
+                                        其他族人 (需收回方可炼制)
+                                    </h5>
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-4 gap-4 opacity-50 grayscale">
+                                        {recipeGroups.others.map(r => renderRecipeCard(r))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {availableRecipesCount === 0 && (
+                                <div className="h-40 flex flex-col items-center justify-center text-gray-700 italic gap-2">
+                                    <span className="text-4xl opacity-10">📖</span>
+                                    <p className="text-[11px]">族中目前暂未收集到丹方残卷</p>
+                                </div>
+                            )}
                         </div>
                     ) : (
-                        <div className="h-full flex flex-col items-center justify-center text-gray-700 italic gap-2">
-                            <span className="text-4xl opacity-10">📖</span>
-                            <p className="text-[11px]">族中目前暂未收集到丹方残卷</p>
+                        <div className="space-y-6">
+                            <div className="grid grid-cols-1 gap-4">
+                                {Object.keys(ALL_ITEM_DETAILS).filter(id => (ALL_ITEM_DETAILS as any)[id].category === 'herb').map(idStr => {
+                                    const id = parseInt(idStr);
+                                    const { clanQty, masterQty, total } = getHerbQty(id);
+                                    if (total === 0) return null;
+                                    const detail = ALL_ITEM_DETAILS[id] as any;
+                                    const style = getGradeStyle(detail.grade);
+                                    
+                                    return (
+                                        <div key={id} className="flex items-center justify-between p-3 bg-black/20 border border-white/5 rounded hover:bg-white/5 transition-all group">
+                                            <div className="flex items-center gap-3">
+                                                <div className={`w-10 h-10 rounded flex items-center justify-center text-xl ${style.bg} ${style.border} border`}>🌿</div>
+                                                <div>
+                                                    <p className={`text-[13px] font-bold ${style.text}`}>{detail.name}</p>
+                                                    <p className="text-[10px] text-gray-600">{detail.gradeText}</p>
+                                                </div>
+                                            </div>
+                                            <div className="flex gap-6 text-right">
+                                                <div className="flex flex-col">
+                                                    <span className="text-[9px] text-gray-600 font-bold uppercase tracking-tighter">族库</span>
+                                                    <span className="text-emerald-500 font-mono font-bold text-sm">{clanQty}</span>
+                                                </div>
+                                                <div className="flex flex-col">
+                                                    <span className="text-[9px] text-gray-600 font-bold uppercase tracking-tighter">堂主</span>
+                                                    <span className="text-blue-500 font-mono font-bold text-sm">{masterQty}</span>
+                                                </div>
+                                                <div className="flex flex-col border-l border-white/5 pl-6">
+                                                    <span className="text-[9px] text-gray-600 font-bold uppercase tracking-tighter">累计</span>
+                                                    <span className="text-yellow-600 font-mono font-bold text-sm">{total}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
                         </div>
                     )}
                 </div>
@@ -208,7 +383,7 @@ const AlchemyRoomTab: React.FC<Props> = ({ building, members, inventory, already
 
             {/* 炼丹确认弹窗 */}
             {selectedRecipe && (
-                <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+                <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setSelectedRecipeId(null)}>
                     <div className="bg-[#1a1215] border-4 border-pink-900/40 p-8 rounded-sm shadow-2xl max-w-sm w-full text-center animate-fade-in" onClick={(e) => e.stopPropagation()}>
                         <h4 className="text-2xl font-cursive text-pink-500 mb-6 tracking-widest">开 炉 炼 丹</h4>
                         
@@ -225,18 +400,41 @@ const AlchemyRoomTab: React.FC<Props> = ({ building, members, inventory, already
                                 })()}
                             </div>
 
+                            <div className="pt-2 border-t border-white/5">
+                                <p className="text-gray-500 text-[10px] uppercase font-bold tracking-widest mb-2">炼制次数</p>
+                                <div className="flex items-center gap-4">
+                                    <input 
+                                        type="range" min="1" max="10" step="1" 
+                                        value={batchCount} 
+                                        onChange={(e) => setBatchCount(parseInt(e.target.value))}
+                                        className="flex-1 accent-pink-600"
+                                    />
+                                    <span className="text-yellow-500 font-mono font-bold w-8 text-center">{batchCount}</span>
+                                </div>
+                            </div>
+
                             <div>
-                                <p className="text-gray-500 text-[10px] uppercase font-bold tracking-widest mb-2">消耗药材</p>
+                                <p className="text-gray-500 text-[10px] uppercase font-bold tracking-widest mb-2">累计消耗</p>
                                 <div className="space-y-1.5">
                                     {Object.entries(selectedRecipe.cost).map(([id, qty]) => {
                                         const detail = ALL_ITEM_DETAILS[parseInt(id)] as any;
-                                        const hasEnough = (inventory.herbs[parseInt(id)] || 0) >= (qty as number);
+                                        const itemId = parseInt(id);
+                                        const totalQty = (qty as number) * batchCount;
+                                        const { clanQty, masterQty, total } = getHerbQty(itemId);
+                                        const hasEnough = total >= totalQty;
+                                        
                                         return (
-                                            <div key={id} className="flex justify-between text-[11px]">
-                                                <span className="text-gray-400">{detail?.name || '未知药材'}</span>
-                                                <span className={`font-mono ${hasEnough ? 'text-green-500' : 'text-red-500 font-bold'}`}>
-                                                    {inventory.herbs[parseInt(id)] || 0} / {qty as number}
-                                                </span>
+                                            <div key={id} className="border-b border-white/5 pb-1 last:border-0">
+                                                <div className="flex justify-between text-[11px]">
+                                                    <span className="text-gray-400">{detail?.name || '未知药材'}</span>
+                                                    <span className={`font-mono ${hasEnough ? 'text-green-500' : 'text-red-500 font-bold'}`}>
+                                                        {total} / {totalQty}
+                                                    </span>
+                                                </div>
+                                                <div className="flex justify-end gap-2 text-[9px] text-gray-600 font-mono">
+                                                    <span>库:{clanQty}</span>
+                                                    <span>主:{masterQty}</span>
+                                                </div>
                                             </div>
                                         );
                                     })}
@@ -250,10 +448,11 @@ const AlchemyRoomTab: React.FC<Props> = ({ building, members, inventory, already
                                 </span>
                             </div>
 
-
                             <div className="pt-2 border-t border-white/5 flex justify-between items-center">
-                                <span className="text-gray-300 text-[11px]">所需岁时</span>
-                                <span className="text-gray-300 font-bold font-mono">{(selectedRecipe as any).turns || 1} 载</span>
+                                <span className="text-gray-300 text-[11px]">累计岁时</span>
+                                <span className="text-yellow-500 font-bold font-mono text-base">
+                                    {((selectedRecipe as any).turns || 1) * batchCount} 载
+                                </span>
                             </div>
                         </div>
 
@@ -272,9 +471,9 @@ const AlchemyRoomTab: React.FC<Props> = ({ building, members, inventory, already
                             >取消</button>
                             <button 
                                 onClick={handleStartAlchemy}
-                                disabled={!assignedAlchemist || !checkResources(selectedRecipe) || !isRankSufficient}
-                                className={`flex-1 py-2.5 rounded font-bold transition-all shadow-xl text-xs border border-pink-500/30 ${assignedAlchemist && checkResources(selectedRecipe) && isRankSufficient ? 'bg-pink-900/80 text-pink-100 hover:bg-pink-800' : 'bg-gray-800 text-gray-600 cursor-not-allowed'}`}
-                            >开始炼制</button>
+                                disabled={!assignedAlchemist || !checkResources(selectedRecipe, batchCount) || !isRankSufficient}
+                                className={`flex-1 py-2.5 rounded font-bold transition-all shadow-xl text-xs border border-pink-500/30 ${assignedAlchemist && checkResources(selectedRecipe, batchCount) && isRankSufficient ? 'bg-pink-900/80 text-pink-100 hover:bg-pink-800' : 'bg-gray-800 text-gray-600 cursor-not-allowed'}`}
+                            >开启炼制</button>
                         </div>
                     </div>
                 </div>

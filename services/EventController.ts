@@ -132,7 +132,10 @@ export class EventController {
         let newMembers = [...state.members];
 
         if (impact.items) {
-            const isOccupyOrAttack = event.title.includes('占领') || event.title.includes('攻克') || event.title.includes('开疆拓土');
+            // Updated logic: Exploration and standard missions now mostly go to Clan inventory
+            // to satisfy user expectations of seeing rewards in the warehouse.
+            const isMissionReward = impact.eventType === 'mission' || impact.eventType === 'standard';
+            const isOccupyOrAttack = event.title.includes('占领') || event.title.includes('攻克') || event.title.includes('开疆拓土') || event.title.includes('探索');
             const targetMemberId = impact.memberId;
             const targetMember = newMembers.find(m => m.id === targetMemberId);
 
@@ -150,19 +153,20 @@ export class EventController {
                     
                     if (catKey === 'scrolls' && typeof newInventory.scrolls === 'number') return;
                     if (catKey === 'paper') {
-                        // Special handling for number type
-                        if (isOccupyOrAttack || !targetMember) {
-                            newInventory.paper += qty;
+                        if (isMissionReward || isOccupyOrAttack || !targetMember) {
+                            newInventory.paper = (newInventory.paper || 0) + qty;
                         } else {
-                            newMembers = newMembers.map(m => m.id === targetMemberId ? { ...m, personalInventory: { ...m.personalInventory, paper: m.personalInventory.paper + qty } } : m);
+                            newMembers = newMembers.map(m => m.id === targetMemberId ? { ...m, personalInventory: { ...m.personalInventory, paper: (m.personalInventory.paper || 0) + qty } } : m);
                         }
                         return;
                     }
 
-                    const typedCat = catKey as 'herbs' | 'minerals' | 'pills' | 'weapons' | 'methods' | 'scrolls';
+                    const typedCat = catKey as keyof Inventory;
+                    if (typeof newInventory[typedCat] !== 'object') return;
 
-                    // Decision logic: Occupy/Attack -> Clan, Others -> Member
-                    if (isOccupyOrAttack || !targetMember) {
+                    // Direct impact rewards from missions usually go to the clan
+                    // Travel events or specific individual events still go to the member
+                    if (isMissionReward || isOccupyOrAttack || !targetMember) {
                         // To Clan
                         const clanCat = { ...(newInventory[typedCat] as Record<number, number>) };
                         clanCat[id] = (clanCat[id] || 0) + qty;
@@ -197,9 +201,14 @@ export class EventController {
             inventory: newInventory,
             members: newMembers,
             logs: [
-                impact.log || `【${currentYear}载·因果】已作出决策：${event.title}`,
+                { 
+                    id: `log_${Date.now()}_${Math.random()}`, 
+                    text: impact.log || `【${currentYear}载·因果】已作出决策：${event.title}`, 
+                    isNew: true 
+                },
                 ...state.logs
-            ].slice(0, 30)
+            ].slice(0, 30),
+            unreadLogCount: (state.unreadLogCount || 0) + 1
         };
 
         // 处理任务结算后的状态归还

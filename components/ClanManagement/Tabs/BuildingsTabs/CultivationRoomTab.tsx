@@ -1,7 +1,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { ClanMember, Building, Realm, Inventory } from '../../../../types';
+import { ClanMember, Building, Realm, Inventory, InjuryStatus } from '../../../../types';
 import { REALM_ORDER, VEIN_LEVELS, ALL_ITEM_DETAILS, CULTIVATION_SLOT_BONUSES } from '../../../../constants';
 import { getGradeStyle } from '../../../MembersPanel/Shared/utils';
 import { renderItemContent } from '../../../Shared/TooltipRenderers';
@@ -29,7 +29,7 @@ const CultivationRoomTab: React.FC<Props> = ({ building, members, inventory, alr
     const [itemPickingQty, setItemPickingQty] = useState<{ id: number; max: number } | null>(null);
     const [pickingQty, setPickingQty] = useState(1);
     
-    const aliveMembers = members.filter(m => m.status !== 'dead' && m.family === '望月李氏');
+    const aliveMembers = members.filter(m => m.status !== InjuryStatus.Dead && m.family === '望月李氏');
     
     const currentVeinLevel = building.veinLevel || 0;
     const currentVeinExp = building.veinExp || 0;

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Region, Realm, ClanMember, TaskType } from '../../types';
+import { Region, Realm, ClanMember, TaskType, InjuryStatus } from '../../types';
 import { REALM_ORDER } from '../../constants';
 import { getRealmText } from '../MembersPanel/Shared/utils';
 
@@ -32,7 +32,7 @@ const RegionInfoPanel: React.FC<RegionInfoPanelProps> = ({ region, members, onCl
     const availableMembers = members
         .filter(m => 
             m.family === '望月李氏' && 
-            m.status === 'healthy' && 
+            m.status === InjuryStatus.Healthy && 
             m.assignment === 'Idle' &&
             m.realm !== Realm.Mortal
         )

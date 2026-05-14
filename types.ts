@@ -75,7 +75,8 @@ export interface Building {
     activeProduction?: {
         recipeId: number;
         turnsRemaining: number;
-        type: 'Alchemy' | 'Smithing';
+        type: 'Alchemy' | 'Smithing' | 'Library';
+        batchCount?: number;
     };
     veinLevel?: number;
     veinExp?: number;
@@ -107,6 +108,15 @@ export interface SpecializedTalents {
     };
 }
 
+export enum InjuryStatus {
+    Healthy = '健康',
+    Light = '轻伤',
+    Heavy = '重伤',
+    Dying = '濒死',
+    FoundationBroken = '道基破损',
+    Dead = '死亡'
+}
+
 export interface ClanMember {
     id: string;
     name: string;
@@ -115,6 +125,7 @@ export interface ClanMember {
     subRealm: number; 
     age: number;
     maxAge: number;
+    maxAgeLost?: number; // 记录因濒死扣除的可恢复寿命
     physique: string;
     aptitude: number;
     comprehension: number;
@@ -134,7 +145,7 @@ export interface ClanMember {
     combatProficiencies: Record<string, number>;
     tier: TalentTier;
     element: Element;
-    status: 'healthy' | 'injured' | 'dead';
+    status: InjuryStatus;
     loyalty: number; 
     assignment: TaskType;
     legacyPoints: number; 
@@ -213,6 +224,12 @@ export interface Region {
     occupancyStatus?: 'idle' | 'secured' | 'disputed';
 }
 
+export interface LogEntry {
+    id: string;
+    text: string;
+    isNew: boolean;
+}
+
 export interface GameState {
     year: number;
     season: number;
@@ -224,10 +241,11 @@ export interface GameState {
     buildings: Building[];
     inventory: Inventory;
     currentRegionId: string;
-    logs: string[];
+    logs: LogEntry[];
     heritagePool: number;
     unlockedPositions: string[];
     flags: Record<string, any>;
     eventQueue: string[];
     factionReputation: Record<string, number>; 
+    unreadLogCount: number;
 }

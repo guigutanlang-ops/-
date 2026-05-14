@@ -28,9 +28,16 @@ const BreakthroughModal: React.FC<Props> = ({ member, onClose, onAttempt }) => {
             .map(([id, count]) => ({ id: parseInt(id), count }))
             .filter(item => {
                 const pill = PILL_DETAILS[item.id] as any;
-                return pill && pill.effects?.breakthroughBonus !== undefined;
+                if (!pill || pill.effects?.breakthroughBonus === undefined) return false;
+                
+                // 如果丹药有目标境界限制，检查是否匹配
+                if (pill.effects.targetRealm && pill.effects.targetRealm !== nextRealm) {
+                    return false;
+                }
+                
+                return true;
             });
-    }, [member.personalInventory.pills]);
+    }, [member.personalInventory.pills, nextRealm]);
 
     const stats = useMemo(() => {
         // Calculate success probability
@@ -138,20 +145,29 @@ const BreakthroughModal: React.FC<Props> = ({ member, onClose, onAttempt }) => {
               💊 辅佐丹药
             </h4>
 
-            <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-hide">
+            <div className="flex gap-4 overflow-x-auto pt-2 pb-4 scrollbar-hide px-2">
 
               {/* 不使用 */}
-              <button
-                onClick={() => setSelectedPillId(null)}
-                className={`shrink-0 w-16 h-16 rounded border-2 flex flex-col items-center justify-center transition-all
-                  ${selectedPillId === null
-                    ? 'border-[#b01212] bg-[#3a1515] shadow-inner'
-                    : 'border-[#6b4a2d]/30 bg-[#1a1411] opacity-60'
-                  }`}
-              >
-                <span className="text-lg">🚫</span>
-                <span className="text-[8px] font-bold text-[#e6c27a] mt-1">不使用</span>
-              </button>
+              <div className="flex flex-col items-center gap-1.5 shrink-0 pt-1">
+                <button
+                  onClick={() => setSelectedPillId(null)}
+                  className={`
+                    w-14 h-14 rounded-md border-2
+                    flex items-center justify-center
+                    transition-all
+                    ${selectedPillId === null
+                      ? 'border-[#ff4d4d] bg-[#3a1515] shadow-inner'
+                      : 'border-[#6b4a2d]/40 bg-[#1a1411] opacity-60'
+                    }`}
+                >
+                  <span className="text-xl">🚫</span>
+                </button>
+                <div className="flex flex-col items-center">
+                  <span className="text-[10px] font-bold text-[#e6c27a] truncate w-16 text-center">
+                    不使用
+                  </span>
+                </div>
+              </div>
 
               {/* 丹药列表 */}
               {availablePills.map(item => {
@@ -159,57 +175,48 @@ const BreakthroughModal: React.FC<Props> = ({ member, onClose, onAttempt }) => {
                 const isSelected = selectedPillId === item.id;
 
                 return (
-                  <button
-                    key={item.id}
-                    onClick={() => setSelectedPillId(item.id)}
-                    className={`
-                        shrink-0
-                        w-16 h-16          /* ⬅️ 高度增加 */
-                        rounded
-                        border-2
-                        flex flex-col items-center justify-start
-                        pt-2 pb-1             /* ⬅️ 给底部留空间 */
-                        transition-all
-                        relative
-                        ${isSelected
-                        ? 'border-[#c63a3a] bg-[#3a1515] shadow-[0_0_12px_rgba(198,58,58,0.6)]'
-                        : 'border-[#6b4a2d]/30 bg-[#1a1411] hover:border-[#c63a3a]/50'}
-                    `}
-                    >
-                    <span className="text-lg leading-none">💊</span>
-
-                    <span className="text-[8px] font-bold text-[#f2d6a2] mt-0.5 truncate w-full px-1 text-center">
-                        {pill.name}
-                    </span>
-
-                    {/* 数量角标 */}
-                    <span
-                        className="
-                        absolute -top-1 -right-1
-                        bg-[#6b4a2d]
-                        text-[#f4e4bc]
-                        text-[8px]
-                        w-4 h-4 rounded-full
+                  <div key={item.id} className="flex flex-col items-center gap-1.5 shrink-0 pt-1">
+                    <button
+                      onClick={() => setSelectedPillId(item.id)}
+                      className={`
+                        w-14 h-14 rounded-md border-2
                         flex items-center justify-center
-                        border border-[#f4e4bc]/30
-                        "
+                        transition-all relative
+                        ${isSelected
+                          ? 'border-[#ff4d4d] bg-[#3a1515] shadow-[0_0_15px_rgba(255,77,77,0.3)]'
+                          : 'border-[#6b4a2d]/40 bg-[#1a1411] hover:border-[#9c6a4d]/60'}
+                      `}
                     >
-                        {item.count}
-                    </span>
+                      <span className="text-2xl drop-shadow-sm">💊</span>
 
-                    {/* 加成显示（卡片内底部） */}
-                    {isSelected && (
-                        <span className="
-                        mt-auto
-                        text-[8px]
-                        font-bold
-                        text-[#ffb347]
-                        leading-none
-                        ">
-                        +{pill.effects.breakthroughBonus}%
-                        </span>
-                    )}
+                      {/* 数量角标 - 悬浮在右上角 */}
+                      <span
+                        className="
+                          absolute -top-2 -right-2
+                          bg-[#4a3220]
+                          text-[#f4e4bc]
+                          text-[10px] font-mono font-bold
+                          min-w-[18px] h-[18px] px-1 rounded-full
+                          flex items-center justify-center
+                          border border-[#f4e4bc]/30
+                          shadow-md z-20
+                        "
+                      >
+                        {item.count}
+                      </span>
+
+                      {/* 加成显示 */}
+                      {isSelected && (
+                        <div className="absolute inset-0 bg-red-500/5 pointer-events-none rounded-sm"></div>
+                      )}
                     </button>
+
+                    <div className="flex flex-col items-center">
+                      <span className="text-[10px] font-bold text-[#f2d6a2] truncate w-16 text-center">
+                        {pill.name}
+                      </span>
+                    </div>
+                  </div>
                 );
               })}
 

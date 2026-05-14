@@ -179,12 +179,9 @@ const WorldMap: React.FC<Props> = ({
     /**
      * 计算渲染位置：
      * 我们需要将世界中心对齐视口中心，然后应用缩放和摄像机位移。
+     * 使用 single line string 避免某些浏览器解析换行符错误导致 transform 失效
      */
-    const worldTransform = `
-        translate(${VIEW_W/2}px, ${VIEW_H/2}px) 
-        scale(${scale}) 
-        translate(${-camera.x}px, ${-camera.y}px)
-    `;
+    const worldTransform = `translate3d(${VIEW_W/2}px, ${VIEW_H/2}px, 0) scale(${scale}) translate3d(${-camera.x}px, ${-camera.y}px, 0)`;
 
     // UI Marker 投影：不随 scale，但需要随 translate
     const getUIPosition = (regionX: number, regionY: number) => {
@@ -205,7 +202,7 @@ const WorldMap: React.FC<Props> = ({
 
     return (
         <div 
-            className={`w-full h-full relative overflow-hidden bg-[#020403] border-4 border-red-500/20 ${cursorClass}`}
+            className={`w-full h-full absolute inset-0 overflow-hidden bg-[#020403] border-4 border-accent-gold/5 ${cursorClass}`}
             style={{ touchAction: 'none' }}
             onWheel={handleWheel}
             onMouseDown={handleMouseDown}
@@ -219,27 +216,39 @@ const WorldMap: React.FC<Props> = ({
         >
             {/* 1. 世界层：地形、气场 */}
             <div 
-                className="absolute inset-0 pointer-events-none origin-top-left"
+                className="absolute"
                 style={{ 
+                    left: 0,
+                    top: 0,
                     width: WORLD_W, 
                     height: WORLD_H,
                     transform: worldTransform,
+                    transformOrigin: '0 0',
                     transition: isDragging ? 'none' : 'transform 0.4s cubic-bezier(0.1, 0.9, 0.2, 1)',
-                    willChange: 'transform'
+                    willChange: 'transform',
+                    pointerEvents: 'none'
                 }}
             >
-                {/* 地形底图 - 此时它铺满 WORLD_W x WORLD_H */}
-                <div className="absolute inset-0 z-0 bg-[#0d1310]" 
+                {/* 地形底图 - 使用更稳健的样式和备用颜色 */}
+                <div className="absolute inset-0 z-0 bg-[#161d1a]" 
                      style={{ 
-                        backgroundImage: `url('https://r.jina.ai/i/05825d706f964a2781d4a04d334e3a89')`, 
-                        backgroundSize: '100% 100%',
+                        backgroundImage: `url('https://images.unsplash.com/photo-1541701494587-cb58502866ab?q=80&w=2070&auto=format&fit=crop')`, 
+                        backgroundSize: 'cover',
+                        backgroundPosition: 'center',
                         backgroundRepeat: 'no-repeat',
-                        opacity: 0.9,
+                        opacity: 0.4,
+                        mixBlendMode: 'soft-light'
                      }} 
                 />
-
-                <div className="absolute inset-0 z-[1] opacity-[0.08] mix-blend-multiply" 
-                     style={{ backgroundImage: `url(${IMAGE_ASSETS.MAP.PAPER_TEXTURE})`, backgroundSize: '500px' }} />
+                
+                {/* 地图纸张纹理细节 */}
+                <div className="absolute inset-0 z-[1] bg-[#0c1210]" />
+                
+                <div className="absolute inset-0 z-[2] opacity-[0.1] mix-blend-overlay" 
+                     style={{ 
+                        backgroundImage: `url('https://www.transparenttextures.com/patterns/natural-paper.png')`,
+                        backgroundRepeat: 'repeat'
+                     }} />
 
                 <FactionAuraLayer regions={regions} scale={scale} />
             </div>

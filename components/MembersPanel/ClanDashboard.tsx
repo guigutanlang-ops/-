@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { GameState, ClanMember, Realm, CultivationMethod } from '../../types';
+import { GameState, ClanMember, Realm, CultivationMethod, InjuryStatus } from '../../types';
 import { REALM_ORDER, TASK_INFO } from '../../constants';
 import { getRequiredExp } from '../Xiulian/CultivationSystem';
 import { getRealmStyle, getRealmText, getTierColor, getRootGradeColor } from './Shared/utils';
@@ -60,12 +60,23 @@ const MemberRow: React.FC<{
                         </div>
                     )}
                 </div>
-            </div>
-            <div className="flex justify-between items-center text-[11px] tracking-wider mb-2">
-                <span className={`font-bold ${getRootGradeColor(m.rootGrade)}`}>◈ {m.rootGrade}</span>
                 <span className={`font-medium px-2 py-0.5 rounded-sm bg-black/20 ${TASK_INFO[m.assignment]?.color || 'text-text-disabled'}`}>
                     {TASK_INFO[m.assignment]?.label || '未知'}
                 </span>
+            </div>
+            <div className="flex justify-between items-center text-[11px] tracking-wider mb-2">
+                <div className="flex items-center gap-2">
+                    <span className={`font-bold ${getRootGradeColor(m.rootGrade)}`}>◈ {m.rootGrade}</span>
+                    {m.status !== InjuryStatus.Healthy && m.status !== InjuryStatus.Dead && (
+                        <span className={`font-black px-1.5 py-0.5 rounded-sm border ${
+                            m.status === InjuryStatus.FoundationBroken || m.status === InjuryStatus.Dying ? 'bg-red-900/20 border-red-500 text-red-500' :
+                            m.status === InjuryStatus.Heavy ? 'bg-orange-900/20 border-orange-500 text-orange-500' :
+                            m.status === InjuryStatus.Light ? 'bg-yellow-900/20 border-yellow-500 text-yellow-500' : ''
+                        }`}>
+                            {m.status}
+                        </span>
+                    )}
+                </div>
             </div>
             {m.realm !== Realm.Mortal && (
                 <CanvasSpiritBar 
@@ -101,7 +112,7 @@ const ClanDashboard: React.FC<Props> = ({ state, onUpdateMember, onAddMember, on
     const filteredMembers = useMemo(() => {
         const list = state.members.filter(m => {
             const isTargetFamily = m.family === '望月李氏';
-            const isCorrectStatus = activeTab === 'alive' ? m.status !== 'dead' : m.status === 'dead';
+            const isCorrectStatus = activeTab === 'alive' ? m.status !== InjuryStatus.Dead : m.status === InjuryStatus.Dead;
             return isTargetFamily && isCorrectStatus;
         });
         

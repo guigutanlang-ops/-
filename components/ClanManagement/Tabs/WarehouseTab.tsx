@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Inventory, ClanMember, Realm } from '../../../types';
+import { Inventory, ClanMember, Realm, InjuryStatus } from '../../../types';
 import { ALL_ITEM_DETAILS, REALM_ORDER } from '../../../constants';
 import { getGradeStyle, getRealmText } from '../../MembersPanel/Shared/utils';
 import { renderItemContent } from '../../Shared/TooltipRenderers';
@@ -85,7 +85,7 @@ const WarehouseTab: React.FC<Props> = ({ inventory, members, onAssignItem, showT
 
     const familyMembers = useMemo(() => {
         return members
-            .filter(m => m.family === '望月李氏' && m.status !== 'dead' && m.realm !== Realm.Mortal && m.age>=6)
+            .filter(m => m.family === '望月李氏' && m.status !== InjuryStatus.Dead && m.realm !== Realm.Mortal && m.age>=6)
             .sort((a, b) => {
                 const idxA = REALM_ORDER.indexOf(a.realm);
                 const idxB = REALM_ORDER.indexOf(b.realm);

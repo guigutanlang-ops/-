@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { ClanMember } from '../../../types';
+import { ClanMember, InjuryStatus } from '../../../types';
 import { POSITIONS } from '../../../constants';
 
 interface Props {
@@ -12,7 +12,7 @@ interface Props {
 }
 
 const PositionsTab: React.FC<Props> = ({ members, unlockedPositions, merit, onUpdateMember, onUnlockPosition }) => {
-    const aliveMembers = members.filter(m => m.status !== 'dead' && m.family === '望月李氏');
+    const aliveMembers = members.filter(m => m.status !== InjuryStatus.Dead && m.family === '望月李氏');
 
     const positionConfigs: Record<string, { cost: number; desc: string; icon: string }> = {
         '执事': { cost: 50, desc: '处理家族日常琐碎，负责资源调配。', icon: '📝' },
